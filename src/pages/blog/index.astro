@@ -1,0 +1,335 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AdUnit from '../../components/AdUnit.astro';
+import { db } from '../../services/db';
+
+export const prerender = false;
+
+const blogs = await db.getBlogs();
+const categories = (await db.getBlogCategories()).filter(cat => cat.count > 0);
+
+const blogsJson = JSON.stringify(blogs.map(b => ({
+  id: b.id,
+  title: b.title,
+  slug: b.slug,
+  summary: b.summary,
+  cover_url: b.cover_url,
+  created_at: b.created_at,
+  categories: b.categories || []
+})));
+
+const categoriesJson = JSON.stringify(categories);
+---
+
+<Layout title="Bản tin ôn thi & Kinh nghiệm" description="Tổng hợp các bài viết kinh nghiệm ôn thi THPT Quốc gia, bí quyết đạt điểm 9+, phân tích ma trận đề minh họa các môn học lớp 12." showSidebar={false} hideUserMenu={true} showAds={true}>
+  <div class="space-y-8">
+    <!-- Header -->
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 to-indigo-800 text-white p-8 md:p-12 shadow-xl shadow-blue-500/10">
+      <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.1),transparent_50%)]"></div>
+      <div class="relative z-10 max-w-2xl space-y-4">
+        <span class="inline-flex items-center gap-1 px-3.5 py-1 rounded-full text-xs font-semibold bg-white/10 text-white border border-white/20 backdrop-blur-md">
+          📰 Bản tin LMS
+        </span>
+        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight font-outfit">
+          Bí kíp học tập & Tin tức Giáo dục
+        </h1>
+        <p class="text-sm md:text-base text-blue-150 leading-relaxed font-medium">
+          Nơi cập nhật nhanh chóng các thông báo tuyển sinh mới nhất, cấu trúc đề thi tham khảo THPT và chia sẻ phương pháp giải nhanh trắc nghiệm điểm cao.
+        </p>
+      </div>
+    </div>
+
+    <!-- Controls Bar: Category Dropdown -->
+    <div class="flex items-center justify-between gap-4 flex-wrap">
+      <p id="results-info" class="text-sm text-gray-500 dark:text-slate-400 font-medium"></p>
+
+      {categories.length > 0 && (
+        <div class="relative" id="category-dropdown-wrapper">
+          <button
+            id="category-dropdown-btn"
+            class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-gray-200/60 dark:border-slate-800/80 shadow-sm text-sm font-bold text-gray-700 dark:text-slate-200 hover:border-blue-400 dark:hover:border-blue-500 transition-all"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h8m-8 6h16" />
+            </svg>
+            <span id="category-label">Chuyên mục: Tất cả</span>
+            <svg id="dropdown-chevron" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <!-- Dropdown Menu -->
+          <div
+            id="category-dropdown-menu"
+            class="hidden absolute right-0 top-full mt-2 z-40 w-72 max-h-80 overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-gray-200/60 dark:border-slate-800/80 shadow-xl shadow-blue-500/10 py-2"
+          >
+            <button
+              data-cat-id="all"
+              data-cat-name="Tất cả"
+              class="cat-option w-full text-left px-4 py-2.5 text-sm font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors"
+            >
+              Tất cả bài viết
+            </button>
+            <div class="h-px bg-gray-100 dark:bg-slate-800 my-1"></div>
+            {categories.map(cat => (
+              <button
+                data-cat-id={cat.id}
+                data-cat-name={cat.name}
+                class="cat-option w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between gap-2"
+              >
+                <span class="truncate">{cat.name}</span>
+                <span class="shrink-0 text-xs text-gray-400 dark:text-slate-500 font-medium bg-gray-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{cat.count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+
+    <!-- Blog Posts Grid (rendered by JS) -->
+    <div id="blog-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- populated by JS -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="hidden text-center py-16 bg-white dark:bg-slate-900 border border-gray-200/60 dark:border-slate-800/80 rounded-3xl">
+      <span class="text-4xl">📭</span>
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white mt-4 font-outfit">Không có bài viết nào</h3>
+      <p class="text-sm text-gray-500 dark:text-slate-400 mt-1 font-medium">Chuyên mục này chưa có bài viết.</p>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination" class="flex items-center justify-center gap-2 pt-2"></div>
+
+    <!-- Ad Unit bưới pagination -->
+    <AdUnit type="responsive" adSlot="1234567890" class="mt-4" />
+  </div>
+</Layout>
+
+<script define:vars={{ blogsJson, categoriesJson }}>
+  const POSTS_PER_PAGE = 10;
+  const allBlogs = JSON.parse(blogsJson);
+  const allCategories = JSON.parse(categoriesJson);
+
+  let currentCatId = 'all';
+  let currentPage = 1;
+  let filteredBlogs = [...allBlogs];
+  let totalFiltered = allBlogs.length;
+  // Track if we're using server-side category data (WP mode)
+  const hasWpApi = allBlogs.length > 0 && allBlogs[0] && typeof allBlogs[0].id === 'string' && !allBlogs[0].id.startsWith('blog-');
+
+  // --- Dropdown toggle ---
+  const dropdownBtn = document.getElementById('category-dropdown-btn');
+  const dropdownMenu = document.getElementById('category-dropdown-menu');
+  const dropdownChevron = document.getElementById('dropdown-chevron');
+  const categoryLabel = document.getElementById('category-label');
+
+  dropdownBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isHidden = dropdownMenu?.classList.contains('hidden');
+    dropdownMenu?.classList.toggle('hidden', !isHidden);
+    dropdownChevron?.classList.toggle('rotate-180', isHidden);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!document.getElementById('category-dropdown-wrapper')?.contains(e.target)) {
+      dropdownMenu?.classList.add('hidden');
+      dropdownChevron?.classList.remove('rotate-180');
+    }
+  });
+
+  // --- Category selection ---
+  document.querySelectorAll('.cat-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const catId = opt.getAttribute('data-cat-id') || 'all';
+      const catName = opt.getAttribute('data-cat-name') || 'Tất cả';
+
+      currentCatId = catId;
+      currentPage = 1;
+
+      if (categoryLabel) categoryLabel.textContent = `Chuyên mục: ${catName}`;
+      dropdownMenu?.classList.add('hidden');
+      dropdownChevron?.classList.remove('rotate-180');
+
+      // Update option active styles
+      document.querySelectorAll('.cat-option').forEach(b => {
+        b.classList.remove('text-blue-600', 'dark:text-blue-400', 'bg-blue-50', 'dark:bg-blue-950/30', 'font-semibold');
+        b.classList.add('text-gray-700', 'dark:text-slate-300');
+      });
+      opt.classList.add('text-blue-600', 'dark:text-blue-400', 'bg-blue-50', 'dark:bg-blue-950/30', 'font-semibold');
+      opt.classList.remove('text-gray-700', 'dark:text-slate-300');
+
+      applyFilterAndRender();
+    });
+  });
+
+  async function applyFilterAndRender() {
+    if (currentCatId === 'all') {
+      // Use already-loaded data for "All"
+      filteredBlogs = [...allBlogs];
+      totalFiltered = allBlogs.length;
+      renderPage(currentPage);
+      renderPagination();
+    } else {
+      // Try to filter locally first (works when all posts are loaded)
+      const catNum = Number(currentCatId);
+      const localFiltered = allBlogs.filter(b => (b.categories || []).includes(catNum));
+
+      // If local filter found results, use them
+      if (localFiltered.length > 0) {
+        filteredBlogs = localFiltered;
+        totalFiltered = localFiltered.length;
+        renderPage(currentPage);
+        renderPagination();
+        return;
+      }
+
+      // Otherwise fetch from API (WordPress has more posts than loaded)
+      showLoading();
+      try {
+        const res = await fetch(`/api/blog/by-category?cat=${currentCatId}&per_page=100`);
+        if (res.ok) {
+          const json = await res.json();
+          filteredBlogs = json.posts || [];
+          totalFiltered = json.total || filteredBlogs.length;
+        } else {
+          filteredBlogs = [];
+          totalFiltered = 0;
+        }
+      } catch (e) {
+        console.error('Fetch by category error:', e);
+        filteredBlogs = [];
+        totalFiltered = 0;
+      }
+      renderPage(currentPage);
+      renderPagination();
+    }
+  }
+
+  function showLoading() {
+    const grid = document.getElementById('blog-grid');
+    const emptyState = document.getElementById('empty-state');
+    if (grid) {
+      grid.innerHTML = `
+        <div class="col-span-full flex items-center justify-center py-16 gap-3 text-gray-400 dark:text-slate-500">
+          <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          <span class="text-sm font-medium">Đang tải bài viết...</span>
+        </div>`;
+    }
+    emptyState?.classList.add('hidden');
+  }
+
+  function renderPage(page) {
+    const grid = document.getElementById('blog-grid');
+    const emptyState = document.getElementById('empty-state');
+    const resultsInfo = document.getElementById('results-info');
+    if (!grid) return;
+
+    const start = (page - 1) * POSTS_PER_PAGE;
+    const pagePosts = filteredBlogs.slice(start, start + POSTS_PER_PAGE);
+
+    if (filteredBlogs.length === 0) {
+      grid.innerHTML = '';
+      emptyState?.classList.remove('hidden');
+      if (resultsInfo) resultsInfo.textContent = '';
+      return;
+    }
+
+    emptyState?.classList.add('hidden');
+    const total = filteredBlogs.length;
+    const from = start + 1;
+    const to = Math.min(start + POSTS_PER_PAGE, total);
+    if (resultsInfo) resultsInfo.textContent = `Hiển thị ${from}–${to} trong ${total} bài viết`;
+
+    grid.innerHTML = pagePosts.map((blog, relIdx) => {
+      const isFirst = page === 1 && relIdx === 0 && currentCatId === 'all';
+      const cover = blog.cover_url || 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=600&auto=format&fit=crop';
+      const date = new Date(blog.created_at).toLocaleDateString('vi-VN');
+
+      return `
+        <article class="bg-white dark:bg-slate-900 border border-gray-200/60 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 flex flex-col justify-between group${isFirst ? ' md:col-span-2 lg:col-span-3 lg:flex-row' : ''}">
+          <div class="relative overflow-hidden bg-slate-100 dark:bg-slate-800 border-b border-gray-150/40 dark:border-slate-850${isFirst ? ' lg:w-1/2 aspect-video lg:aspect-auto' : ' aspect-video'}">
+            <img src="${cover}" alt="${blog.title.replace(/"/g, '&quot;')}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+          </div>
+          <div class="flex flex-col justify-between p-6 md:p-7${isFirst ? ' lg:w-1/2' : ''}">
+            <div class="space-y-3">
+              <span class="text-[10px] font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-widest bg-blue-50 dark:bg-blue-950/20 px-2.5 py-0.5 rounded-full border border-blue-100/50 dark:border-blue-900/30">Tin tức</span>
+              <h3 class="font-bold text-gray-900 dark:text-white leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors font-outfit${isFirst ? ' text-2xl md:text-3xl' : ' text-base md:text-lg line-clamp-2'}">
+                <a href="/blog/${blog.slug}">${blog.title}</a>
+              </h3>
+              ${blog.summary ? `<p class="text-sm text-gray-500 dark:text-slate-400 leading-relaxed font-medium line-clamp-3">${blog.summary}</p>` : ''}
+            </div>
+            <div class="mt-5 pt-4 border-t border-gray-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-gray-400 dark:text-slate-500 font-semibold">
+              <span>📅 ${date}</span>
+              <a href="/blog/${blog.slug}" class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1 font-bold">Xem chi tiết <span>➔</span></a>
+            </div>
+          </div>
+        </article>`;
+    }).join('');
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function renderPagination() {
+    const container = document.getElementById('pagination');
+    if (!container) return;
+
+    const totalPages = Math.ceil(filteredBlogs.length / POSTS_PER_PAGE);
+    if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+    const btnBase = 'px-3.5 py-2 rounded-xl text-sm font-bold border transition-all';
+    const btnActive = 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/15';
+    const btnInactive = 'bg-white dark:bg-slate-900 border-gray-200/60 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:border-blue-400 dark:hover:border-blue-500';
+
+    let html = '';
+
+    // Prev button
+    html += `<button id="prev-btn" class="${btnBase} ${currentPage === 1 ? 'opacity-40 cursor-not-allowed ' + btnInactive : btnInactive}" ${currentPage === 1 ? 'disabled' : ''}>‹</button>`;
+
+    // Page number buttons (show up to 7 page numbers with ellipsis)
+    const pages = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push('...');
+      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
+      if (currentPage < totalPages - 2) pages.push('...');
+      pages.push(totalPages);
+    }
+
+    pages.forEach(p => {
+      if (p === '...') {
+        html += `<span class="px-2 text-gray-400">…</span>`;
+      } else {
+        html += `<button data-page="${p}" class="page-btn ${btnBase} ${p === currentPage ? btnActive : btnInactive}">${p}</button>`;
+      }
+    });
+
+    // Next button
+    html += `<button id="next-btn" class="${btnBase} ${currentPage === totalPages ? 'opacity-40 cursor-not-allowed ' + btnInactive : btnInactive}" ${currentPage === totalPages ? 'disabled' : ''}>›</button>`;
+
+    container.innerHTML = html;
+
+    document.querySelectorAll('.page-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentPage = Number(btn.getAttribute('data-page'));
+        renderPage(currentPage);
+        renderPagination();
+      });
+    });
+
+    document.getElementById('prev-btn')?.addEventListener('click', () => {
+      if (currentPage > 1) { currentPage--; renderPage(currentPage); renderPagination(); }
+    });
+    document.getElementById('next-btn')?.addEventListener('click', () => {
+      if (currentPage < totalPages) { currentPage++; renderPage(currentPage); renderPagination(); }
+    });
+  }
+
+  // Initial render
+  applyFilterAndRender();
+</script>

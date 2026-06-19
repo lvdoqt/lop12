@@ -1,0 +1,377 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AdUnit from '../../components/AdUnit.astro';
+import { db } from '../../services/db';
+
+export const prerender = false;
+
+const { slug } = Astro.params;
+const user = Astro.locals.user;
+
+if (!slug) {
+  return Astro.redirect('/blog');
+}
+
+const blog = await db.getBlogBySlug(slug);
+if (!blog) {
+  return Astro.redirect('/blog');
+}
+
+const isCommentsEnabled = true;
+
+// Fetch comments
+const comments = await db.getComments(blog.id);
+
+// Helper: Server-side Markdown parsing
+function parseMarkdown(md: string | null) {
+  if (!md) return '';
+  // If the content contains HTML tags, return it directly
+  if (/<[a-z][\s\S]*>/i.test(md)) {
+    return md;
+  }
+  let html = md;
+  html = html.replace(/^### (.*$)/gim, '<h4 class="text-base font-bold text-gray-900 dark:text-white mt-4 mb-2 font-outfit">$1</h4>');
+  html = html.replace(/^## (.*$)/gim, '<h3 class="text-lg font-bold text-gray-900 dark:text-white mt-6 mb-3 border-b border-gray-250 dark:border-slate-800/80 pb-2 font-outfit">$1</h3>');
+  html = html.replace(/^# (.*$)/gim, '<h2 class="text-2xl font-extrabold text-gray-900 dark:text-white mt-8 mb-4 font-outfit">$1</h2>');
+  html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
+  html = html.replace(/\*(.*?)\*/gim, '<em>$1</em>');
+  html = html.replace(/^\- (.*$)/gim, '<li class="list-disc ml-6 my-1.5">$1</li>');
+  html = html.split('\n\n').map(p => {
+    if (p.trim().startsWith('<h') || p.trim().startsWith('<li') || p.trim().startsWith('<ul')) return p;
+    return `<p class="my-4 leading-relaxed text-gray-750 dark:text-slate-300 font-medium">${p}</p>`;
+  }).join('\n');
+  return html;
+}
+
+const htmlContent = parseMarkdown(blog.content);
+
+// Fetch related blog posts from the same category
+const wpApiUrl = import.meta.env.WORDPRESS_API_URL || '';
+let recommendedBlogs: typeof blog[] = [];
+const blogCategories: number[] = (blog.categories as number[] | undefined) || [];
+
+// Fetch category name for display
+let relatedCategoryName = '';
+
+if (wpApiUrl && blogCategories.length > 0) {
+  const catId = blogCategories[0];
+
+  // Fetch category name + related posts in parallel
+  const [catRes, postsRes] = await Promise.all([
+    fetch(`${wpApiUrl}/categories/${catId}`).catch(() => null),
+    fetch(`${wpApiUrl}/posts?_embed=1&categories=${catId}&per_page=4&exclude=${blog.id}`).catch(() => null)
+  ]);
+
+  try {
+    if (catRes?.ok) {
+      const catData = await catRes.json();
+      relatedCategoryName = catData.name || '';
+    }
+  } catch (_) {}
+
+  try {
+    if (postsRes?.ok) {
+      const posts = await postsRes.json();
+      if (Array.isArray(posts)) {
+        recommendedBlogs = posts
+          .filter((p: any) => String(p.id) !== String(blog.id))
+          .slice(0, 3)
+          .map((p: any) => {
+            const featuredMedia = p._embedded?.['wp:featuredmedia']?.[0];
+            const cover_url = featuredMedia?.source_url || featuredMedia?.media_details?.sizes?.medium?.source_url || null;
+            let summary = p.excerpt?.rendered || '';
+            summary = summary.replace(/<\/?[^>]+(>|$)/g, '').trim();
+            return {
+              id: String(p.id),
+              title: p.title?.rendered || '',
+              slug: p.slug || '',
+              summary: summary || null,
+              cover_url,
+              content: null,
+              created_by: null,
+              created_at: p.date || new Date().toISOString(),
+              categories: p.categories || []
+            };
+          });
+      }
+    }
+  } catch (e) {
+    console.error('Related posts fetch error:', e);
+  }
+}
+
+
+// Fallback: use recently loaded posts if WP fetch failed or no category
+if (recommendedBlogs.length === 0) {
+  const allBlogs = await db.getBlogs();
+  recommendedBlogs = allBlogs
+    .filter(b => b.id !== blog.id)
+    .filter(b => {
+      // Prefer same category
+      if (blogCategories.length === 0) return true;
+      const bCats = (b.categories as number[] | undefined) || [];
+      return bCats.some(c => blogCategories.includes(c));
+    })
+    .slice(0, 3);
+
+  // If still empty, just show any recent posts
+  if (recommendedBlogs.length === 0) {
+    const allBlogs2 = await db.getBlogs();
+    recommendedBlogs = allBlogs2.filter(b => b.id !== blog.id).slice(0, 3);
+  }
+}
+
+// ── JSON-LD Article Schema ────────────────────────────────────────────────────
+const siteUrl = 'https://lop12.com';
+const articlePublishedTime = blog.created_at ? new Date(blog.created_at).toISOString() : new Date().toISOString();
+
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: blog.title,
+  description: blog.summary || undefined,
+  url: `${siteUrl}/blog/${blog.slug}`,
+  datePublished: articlePublishedTime,
+  dateModified: articlePublishedTime,
+  image: blog.cover_url || `${siteUrl}/images/og-default.png`,
+  publisher: {
+    '@type': 'Organization',
+    name: 'Lớp 12 LMS',
+    url: siteUrl,
+    logo: {
+      '@type': 'ImageObject',
+      url: `${siteUrl}/favicon.svg`,
+    },
+  },
+  mainEntityOfPage: {
+    '@type': 'WebPage',
+    '@id': `${siteUrl}/blog/${blog.slug}`,
+  },
+};
+
+const breadcrumbs = [
+  { name: 'Blog', url: '/blog' },
+  { name: blog.title, url: `/blog/${blog.slug}` },
+];
+---
+
+<Layout
+  title={blog.title}
+  description={blog.summary || undefined}
+  showSidebar={false}
+  hideUserMenu={true}
+  showAds={true}
+  ogType="article"
+  ogImage={blog.cover_url || '/images/og-default.png'}
+  publishedTime={articlePublishedTime}
+  structuredData={articleSchema}
+  breadcrumbs={breadcrumbs}
+>
+  <div class="space-y-8 max-w-3xl mx-auto">
+    <!-- Breadcrumb -->
+    <div>
+      <a href="/blog" class="inline-flex items-center text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-slate-350 transition-colors uppercase tracking-wider mb-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        Bản tin ôn thi
+      </a>
+      
+      <h1 class="text-2xl md:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight leading-snug font-outfit mt-2">
+        {blog.title}
+      </h1>
+      
+      <div class="flex items-center space-x-3 text-xs text-gray-400 dark:text-slate-500 font-semibold mt-4">
+        <span>📅 Đăng ngày: {new Date(blog.created_at).toLocaleDateString('vi-VN')}</span>
+        <span>•</span>
+        <span class="text-blue-600 dark:text-blue-400">Bí kíp học tập</span>
+      </div>
+    </div>
+
+    <!-- Cover Image -->
+    {blog.cover_url && (
+      <div class="aspect-video w-full rounded-3xl overflow-hidden border border-gray-200/60 dark:border-slate-800/80 shadow-sm bg-slate-100 dark:bg-slate-900">
+        <img
+          src={blog.cover_url}
+          alt={blog.title}
+          class="w-full h-full object-cover"
+        />
+      </div>
+    )}
+
+    <!-- Content Card -->
+    <div class="bg-white dark:bg-slate-900 border border-gray-200/60 dark:border-slate-800/80 rounded-3xl p-6 md:p-10 shadow-sm">
+      <div class="prose dark:prose-invert max-w-none text-sm md:text-base select-text">
+        <div set:html={htmlContent} />
+      </div>
+    </div>
+
+    <!-- Ad Unit sau bài viết -->
+    <AdUnit type="responsive" adSlot="0987654321" class="my-2" />
+
+    <!-- Comments Section -->
+    {isCommentsEnabled && (
+      <div class="bg-white dark:bg-slate-900 border border-gray-200/60 dark:border-slate-800/80 rounded-3xl p-6 md:p-10 shadow-sm">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          Bình luận ({comments.length})
+        </h2>
+
+        <!-- Comment Form -->
+        {user ? (
+          <form id="comment-form" class="mb-8 space-y-3">
+            <input type="hidden" name="blog_id" value={blog.id} />
+            <textarea
+              id="comment-content"
+              name="content"
+              rows="3"
+              required
+              placeholder="Viết bình luận của bạn..."
+              class="w-full px-4 py-3 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100 transition-colors resize-none"
+            ></textarea>
+            <div class="flex justify-end">
+              <button
+                type="submit"
+                id="comment-submit-btn"
+                class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow shadow-blue-500/15 transition disabled:opacity-50"
+              >
+                Gửi bình luận
+              </button>
+            </div>
+            <p id="comment-error" class="hidden text-sm text-rose-600 dark:text-rose-400 font-semibold"></p>
+          </form>
+        ) : (
+          <div class="mb-8 p-4 rounded-xl bg-gray-50 dark:bg-slate-800/50 text-center">
+            <p class="text-sm text-gray-500 dark:text-slate-400">
+              <a href="/login" class="font-semibold text-blue-600 dark:text-blue-400 hover:underline">Đăng nhập</a> để bình luận.
+            </p>
+          </div>
+        )}
+
+        <!-- Comments List -->
+        <div id="comments-list" class="space-y-4">
+          {comments.length === 0 ? (
+            <p class="text-center text-sm text-gray-400 dark:text-slate-500 py-8">
+              Chưa có bình luận nào. Hãy là người đầu tiên bình luận!
+            </p>
+          ) : (
+            comments.map(cmt => (
+              <div class="flex gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-slate-800/30">
+                <img
+                  src={cmt.user?.avatar_url || 'https://api.dicebear.com/7.x/adventurer/svg?seed=default'}
+                  alt={cmt.user?.fullname || 'User'}
+                  class="w-8 h-8 rounded-full bg-slate-700 shrink-0 mt-0.5"
+                />
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-sm font-bold text-gray-900 dark:text-white">
+                      {cmt.user?.fullname || 'Ẩn danh'}
+                    </span>
+                    <span class="text-xs text-gray-400 dark:text-slate-500">
+                      {new Date(cmt.created_at).toLocaleDateString('vi-VN')}
+                    </span>
+                  </div>
+                  <p class="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{cmt.content}</p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    )}
+
+    <!-- Related Articles -->
+    {recommendedBlogs.length > 0 && (
+      <div class="border-t border-gray-200/60 dark:border-slate-850 pt-8 space-y-5">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white font-outfit">Bài viết liên quan</h3>
+            {relatedCategoryName && (
+              <p class="text-xs text-blue-600 dark:text-blue-400 font-semibold mt-0.5 flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" /></svg>
+                Cùng chuyên mục: {relatedCategoryName}
+              </p>
+            )}
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {recommendedBlogs.map(item => (
+            <a
+              href={`/blog/${item.slug}`}
+              class="flex flex-col bg-white dark:bg-slate-900 border border-gray-200/60 dark:border-slate-800/80 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 group"
+            >
+              {item.cover_url && (
+                <div class="aspect-video w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                  <img src={item.cover_url} alt={item.title} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+                </div>
+              )}
+              <div class="p-4 flex flex-col gap-1.5 flex-1">
+                <h4 class="text-sm font-bold text-gray-900 dark:text-white font-outfit line-clamp-3 leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                  {item.title}
+                </h4>
+                <p class="text-xs text-gray-400 dark:text-slate-500 font-semibold mt-auto pt-2">
+                  📅 {new Date(item.created_at).toLocaleDateString('vi-VN')}
+                </p>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+</Layout>
+
+<script>
+  const commentForm = document.getElementById('comment-form') as HTMLFormElement | null;
+  const commentContent = document.getElementById('comment-content') as HTMLTextAreaElement | null;
+  const commentSubmit = document.getElementById('comment-submit-btn') as HTMLButtonElement | null;
+  const commentError = document.getElementById('comment-error');
+  const commentsList = document.getElementById('comments-list');
+
+  if (commentForm && commentContent && commentSubmit) {
+    commentForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const content = commentContent.value.trim();
+      if (!content || content.length < 2) {
+        if (commentError) {
+          commentError.textContent = 'Bình luận phải có ít nhất 2 ký tự.';
+          commentError.classList.remove('hidden');
+        }
+        return;
+      }
+
+      commentSubmit.disabled = true;
+      if (commentError) commentError.classList.add('hidden');
+
+      try {
+        const blogId = (document.querySelector('input[name="blog_id"]') as HTMLInputElement)?.value;
+        const res = await fetch('/api/blog/comment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ blog_id: blogId, content })
+        });
+
+        if (res.ok) {
+          commentContent.value = '';
+          // Reload to show new comment
+          window.location.reload();
+        } else {
+          const data = await res.json();
+          if (commentError) {
+            commentError.textContent = data.error || 'Lỗi gửi bình luận.';
+            commentError.classList.remove('hidden');
+          }
+        }
+      } catch (err: any) {
+        if (commentError) {
+          commentError.textContent = err.message || 'Lỗi kết nối.';
+          commentError.classList.remove('hidden');
+        }
+      } finally {
+        commentSubmit.disabled = false;
+      }
+    });
+  }
+</script>
