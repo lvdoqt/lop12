@@ -6,13 +6,13 @@ import react from '@astrojs/react';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 
+import cloudflare from '@astrojs/cloudflare';
+
 // https://astro.build/config
 export default defineConfig({
   site: 'https://lop12.com',
   output: 'static',
-  adapter: node({
-    mode: 'standalone'
-  }),
+  adapter: cloudflare(),
   integrations: [
     react(),
     mdx({

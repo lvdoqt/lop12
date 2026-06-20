@@ -8,11 +8,14 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro"
+    "preview": "npm run build && wrangler dev",
+    "astro": "astro",
+    "generate-types": "wrangler types",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
+    "@astrojs/cloudflare": "^13.7.0",
     "@astrojs/mdx": "^6.0.3",
     "@astrojs/node": "^10.1.4",
     "@astrojs/react": "^5.0.7",
@@ -28,5 +31,11 @@
     "remark-math": "^6.0.0",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3"
+  },
+  "devDependencies": {
+    "wrangler": "^4.103.0"
+  },
+  "overrides": {
+    "vite": "^7"
   }
 }
