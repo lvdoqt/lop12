@@ -4,23 +4,20 @@ import Layout from '../../layouts/Layout.astro';
 import QuestionCard from '../../components/QuestionCard.astro';
 import { db } from '../../services/db';
 
-export const prerender = true;
+export const prerender = false;
 
-export async function getStaticPaths() {
-  const lessonEntries = await getCollection('lessons');
-  return lessonEntries.map(entry => {
-    const slug = entry.id.split('/').pop() || entry.id;
-    return {
-      params: { 
-        subject: entry.data.subject,
-        slug 
-      },
-      props: { entry },
-    };
-  });
+const { subject: subjectParam, slug } = Astro.params;
+
+// Find matching lesson entry dynamically (SSR)
+const allLessonEntries = await getCollection('lessons');
+const entry = allLessonEntries.find(e => {
+  const entrySlug = e.id.split('/').pop() || e.id;
+  return e.data.subject === subjectParam && entrySlug === slug;
+});
+
+if (!entry) {
+  return Astro.redirect('/ly-thuyet');
 }
-
-const { entry } = Astro.props;
 const { Content } = await render(entry);
 
 const subjects = await db.getSubjects();

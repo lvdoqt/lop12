@@ -5,17 +5,16 @@ import LessonCard from '../../components/LessonCard.astro';
 import AdUnit from '../../components/AdUnit.astro';
 import { db } from '../../services/db';
 
-export const prerender = true;
+export const prerender = false;
 
-export async function getStaticPaths() {
-  const subjects = await db.getSubjects();
-  return subjects.map(subject => ({
-    params: { slug: subject.slug },
-    props: { subject }
-  }));
+const { slug } = Astro.params;
+
+const subjects = await db.getSubjects();
+const subject = subjects.find(s => s.slug === slug);
+
+if (!subject) {
+  return Astro.redirect('/ly-thuyet');
 }
-
-const { subject } = Astro.props;
 
 // Fetch lessons for this subject using Content Collections
 const lessonEntries = await getCollection('lessons');
