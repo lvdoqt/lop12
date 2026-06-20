@@ -3,14 +3,13 @@ import type { APIRoute } from 'astro';
 export const prerender = false;
 
 function getCookieOptions(maxAge: number) {
-  const isProd = process.env.NODE_ENV === 'production';
+  const isProd = import.meta.env.PROD;
   return {
     path: '/',
     httpOnly: true,
     secure: isProd,
     sameSite: 'lax' as const,
     maxAge,
-    domain: isProd ? undefined : undefined, // Let browser handle localhost/127.0.0.1
   };
 }
 

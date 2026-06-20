@@ -4,7 +4,7 @@ export const prerender = false;
 import { createClient } from '@supabase/supabase-js';
 
 function getCookieOptions(maxAge: number) {
-  const isProd = process.env.NODE_ENV === 'production';
+  const isProd = import.meta.env.PROD;
   return {
     path: '/',
     httpOnly: true,
