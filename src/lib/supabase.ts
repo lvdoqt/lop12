@@ -1,11 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Prefer publicly-exposed env vars for client-side code (Astro/Vite: PUBLIC_ prefix),
-// fall back to non-public names for server-side usage.
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || import.meta.env.SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY || '';
-// Service role key should only be provided via build/server env. Avoid `process.env` in client-bundles.
-const supabaseServiceKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY || (typeof process !== 'undefined' ? process.env.SUPABASE_SERVICE_ROLE_KEY : '') || '';
+/** Get env var at build-time (import.meta.env) or runtime (process.env for Cloudflare Workers). */
+function env(name: string): string {
+  return import.meta.env[name] || (typeof process !== 'undefined' ? process.env[name] : '') || '';
+}
+
+const supabaseUrl = env('PUBLIC_SUPABASE_URL') || env('SUPABASE_URL') || '';
+const supabaseAnonKey = env('PUBLIC_SUPABASE_ANON_KEY') || env('SUPABASE_ANON_KEY') || '';
+const supabaseServiceKey = env('SUPABASE_SERVICE_ROLE_KEY') || '';
 
 // Detect if we should use mock data (if keys are missing or placeholder)
 export const isMockMode = 
