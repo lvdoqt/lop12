@@ -1,29 +1,54 @@
-import { isMockMode, supabase, createAdminSupabase } from '../lib/supabase';
+﻿import { isMockMode, isMockModeForEnv, supabase, createAdminSupabase, createServerSupabase } from '../lib/supabase';
 import type { Subject, Lesson, Question, Answer, Exam, Attempt, User, Blog, Comment, Course, CourseLesson, CourseEnrollment, LessonProgress } from '../types';
+
+// Ã¢â€â‚¬Ã¢â€â‚¬ Cloudflare runtime env injection Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// Middleware calls setRuntimeEnv() per-request with Cloudflare runtime.env.
+// All db functions use _runtimeEnv() to create Supabase clients correctly on CF Pages.
+let _cachedRuntimeEnv: Record<string, string | undefined> | undefined;
+
+export function setRuntimeEnv(env: Record<string, string | undefined> | undefined) {
+  _cachedRuntimeEnv = env;
+}
+
+/** True if running in mock mode considering both static env and CF runtime env */
+function isInMockMode(): boolean {
+  return isMockModeForEnv(_cachedRuntimeEnv);
+}
+
+/** Get admin Supabase client, aware of CF runtime env */
+function adminClient() {
+  return createAdminSupabase(_cachedRuntimeEnv);
+}
+
+/** Get anon Supabase client, aware of CF runtime env */
+function anonClient() {
+  return createServerSupabase(_cachedRuntimeEnv) || supabase;
+}
+
 
 // ============================================================================
 // SLUGIFY UTILITY (Vietnamese-aware)
 // ============================================================================
 function slugify(text: string): string {
   const map: Record<string, string> = {
-    'à':'a','á':'a','ạ':'a','ả':'a','ã':'a','â':'a','ầ':'a','ấ':'a','ậ':'a','ẩ':'a','ẫ':'a',
-    'ă':'a','ằ':'a','ắ':'a','ặ':'a','ẳ':'a','ẵ':'a',
-    'è':'e','é':'e','ẹ':'e','ẻ':'e','ẽ':'e','ê':'e','ề':'e','ế':'e','ệ':'e','ể':'e','ễ':'e',
-    'ì':'i','í':'i','ị':'i','ỉ':'i','ĩ':'i',
-    'ò':'o','ó':'o','ọ':'o','ỏ':'o','õ':'o','ô':'o','ồ':'o','ố':'o','ộ':'o','ổ':'o','ỗ':'o',
-    'ơ':'o','ờ':'o','ớ':'o','ợ':'o','ở':'o','ỡ':'o',
-    'ù':'u','ú':'u','ụ':'u','ủ':'u','ũ':'u','ư':'u','ừ':'u','ứ':'u','ự':'u','ử':'u','ữ':'u',
-    'ỳ':'y','ý':'y','ỵ':'y','ỷ':'y','ỹ':'y',
-    'đ':'d',
-    'À':'a','Á':'a','Ạ':'a','Ả':'a','Ã':'a','Â':'a','Ầ':'a','Ấ':'a','Ậ':'a','Ẩ':'a','Ẫ':'a',
-    'Ă':'a','Ằ':'a','Ắ':'a','Ặ':'a','Ẳ':'a','Ẵ':'a',
-    'È':'e','É':'e','Ẹ':'e','Ẻ':'e','Ẽ':'e','Ê':'e','Ề':'e','Ế':'e','Ệ':'e','Ể':'e','Ễ':'e',
-    'Ì':'i','Í':'i','Ị':'i','Ỉ':'i','Ĩ':'i',
-    'Ò':'o','Ó':'o','Ọ':'o','Ỏ':'o','Õ':'o','Ô':'o','Ồ':'o','Ố':'o','Ộ':'o','Ổ':'o','Ỗ':'o',
-    'Ơ':'o','Ờ':'o','Ớ':'o','Ợ':'o','Ở':'o','Ỡ':'o',
-    'Ù':'u','Ú':'u','Ụ':'u','Ủ':'u','Ũ':'u','Ư':'u','Ừ':'u','Ứ':'u','Ự':'u','Ử':'u','Ữ':'u',
-    'Ỳ':'y','Ý':'y','Ỵ':'y','Ỷ':'y','Ỹ':'y',
-    'Đ':'d',
+    'ÃƒÂ ':'a','ÃƒÂ¡':'a','Ã¡ÂºÂ¡':'a','Ã¡ÂºÂ£':'a','ÃƒÂ£':'a','ÃƒÂ¢':'a','Ã¡ÂºÂ§':'a','Ã¡ÂºÂ¥':'a','Ã¡ÂºÂ­':'a','Ã¡ÂºÂ©':'a','Ã¡ÂºÂ«':'a',
+    'Ã„Æ’':'a','Ã¡ÂºÂ±':'a','Ã¡ÂºÂ¯':'a','Ã¡ÂºÂ·':'a','Ã¡ÂºÂ³':'a','Ã¡ÂºÂµ':'a',
+    'ÃƒÂ¨':'e','ÃƒÂ©':'e','Ã¡ÂºÂ¹':'e','Ã¡ÂºÂ»':'e','Ã¡ÂºÂ½':'e','ÃƒÂª':'e','Ã¡Â»Â':'e','Ã¡ÂºÂ¿':'e','Ã¡Â»â€¡':'e','Ã¡Â»Æ’':'e','Ã¡Â»â€¦':'e',
+    'ÃƒÂ¬':'i','ÃƒÂ­':'i','Ã¡Â»â€¹':'i','Ã¡Â»â€°':'i','Ã„Â©':'i',
+    'ÃƒÂ²':'o','ÃƒÂ³':'o','Ã¡Â»Â':'o','Ã¡Â»Â':'o','ÃƒÂµ':'o','ÃƒÂ´':'o','Ã¡Â»â€œ':'o','Ã¡Â»â€˜':'o','Ã¡Â»â„¢':'o','Ã¡Â»â€¢':'o','Ã¡Â»â€”':'o',
+    'Ã†Â¡':'o','Ã¡Â»Â':'o','Ã¡Â»â€º':'o','Ã¡Â»Â£':'o','Ã¡Â»Å¸':'o','Ã¡Â»Â¡':'o',
+    'ÃƒÂ¹':'u','ÃƒÂº':'u','Ã¡Â»Â¥':'u','Ã¡Â»Â§':'u','Ã…Â©':'u','Ã†Â°':'u','Ã¡Â»Â«':'u','Ã¡Â»Â©':'u','Ã¡Â»Â±':'u','Ã¡Â»Â­':'u','Ã¡Â»Â¯':'u',
+    'Ã¡Â»Â³':'y','ÃƒÂ½':'y','Ã¡Â»Âµ':'y','Ã¡Â»Â·':'y','Ã¡Â»Â¹':'y',
+    'Ã„â€˜':'d',
+    'Ãƒâ‚¬':'a','ÃƒÂ':'a','Ã¡ÂºÂ ':'a','Ã¡ÂºÂ¢':'a','ÃƒÆ’':'a','Ãƒâ€š':'a','Ã¡ÂºÂ¦':'a','Ã¡ÂºÂ¤':'a','Ã¡ÂºÂ¬':'a','Ã¡ÂºÂ¨':'a','Ã¡ÂºÂª':'a',
+    'Ã„â€š':'a','Ã¡ÂºÂ°':'a','Ã¡ÂºÂ®':'a','Ã¡ÂºÂ¶':'a','Ã¡ÂºÂ²':'a','Ã¡ÂºÂ´':'a',
+    'ÃƒË†':'e','Ãƒâ€°':'e','Ã¡ÂºÂ¸':'e','Ã¡ÂºÂº':'e','Ã¡ÂºÂ¼':'e','ÃƒÅ ':'e','Ã¡Â»â‚¬':'e','Ã¡ÂºÂ¾':'e','Ã¡Â»â€ ':'e','Ã¡Â»â€š':'e','Ã¡Â»â€ž':'e',
+    'ÃƒÅ’':'i','ÃƒÂ':'i','Ã¡Â»Å ':'i','Ã¡Â»Ë†':'i','Ã„Â¨':'i',
+    'Ãƒâ€™':'o','Ãƒâ€œ':'o','Ã¡Â»Å’':'o','Ã¡Â»Å½':'o','Ãƒâ€¢':'o','Ãƒâ€':'o','Ã¡Â»â€™':'o','Ã¡Â»Â':'o','Ã¡Â»Ëœ':'o','Ã¡Â»â€':'o','Ã¡Â»â€“':'o',
+    'Ã†Â ':'o','Ã¡Â»Å“':'o','Ã¡Â»Å¡':'o','Ã¡Â»Â¢':'o','Ã¡Â»Å¾':'o','Ã¡Â»Â ':'o',
+    'Ãƒâ„¢':'u','ÃƒÅ¡':'u','Ã¡Â»Â¤':'u','Ã¡Â»Â¦':'u','Ã…Â¨':'u','Ã†Â¯':'u','Ã¡Â»Âª':'u','Ã¡Â»Â¨':'u','Ã¡Â»Â°':'u','Ã¡Â»Â¬':'u','Ã¡Â»Â®':'u',
+    'Ã¡Â»Â²':'y','ÃƒÂ':'y','Ã¡Â»Â´':'y','Ã¡Â»Â¶':'y','Ã¡Â»Â¸':'y',
+    'Ã„Â':'d',
   };
   return text
     .split('').map(c => map[c] || c).join('')
@@ -60,7 +85,7 @@ let mockAttempts: Attempt[] = [];
 
 let mockComments: Comment[] = [];
 
-// ── Course mock data ──────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Course mock data Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 let mockCourses: Course[] = [];
 
 let mockCourseLessons: CourseLesson[] = [];
@@ -146,19 +171,23 @@ export const db = {
   // SUBJECTS
   // --------------------------------------------------------------------------
   async getSubjects(): Promise<Subject[]> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       return mockSubjects;
     }
-    const { data, error } = await supabase.from('subjects').select('*').order('name');
+    const client = adminClient();
+    if (!client) return [];
+    const { data, error } = await client.from('subjects').select('*').order('name');
     if (error) throw error;
     return data || [];
   },
 
   async getSubjectBySlug(slug: string): Promise<Subject | null> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       return mockSubjects.find(s => s.slug === slug) || null;
     }
-    const { data, error } = await supabase.from('subjects').select('*').eq('slug', slug).single();
+    const client = adminClient();
+    if (!client) return null;
+    const { data, error } = await client.from('subjects').select('*').eq('slug', slug).single();
     if (error) return null;
     return data;
   },
@@ -169,14 +198,14 @@ export const db = {
   // EXAMS & EXAM QUESTIONS
   // --------------------------------------------------------------------------
   async getExams(subjectId?: string, createdBy?: string): Promise<(Exam & { subject?: Subject })[]> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       let exams = mockExams;
       if (subjectId) exams = mockExams.filter(e => e.subject_id === subjectId);
       if (createdBy) exams = exams.filter(e => e.created_by === createdBy);
       return exams.map(e => ({ ...e, subject: mockSubjects.find(s => s.id === e.subject_id) }));
     }
     // Use admin client to bypass RLS for server-side reads (auth.uid() is null in SSR)
-    const client = createAdminSupabase() || supabase!;
+    const client = adminClient()!;
     let query = client.from('exams').select('*, subject:subjects(*)').order('created_at', { ascending: false });
     if (subjectId) query = query.eq('subject_id', subjectId);
     if (createdBy) query = query.eq('created_by', createdBy);
@@ -186,12 +215,12 @@ export const db = {
   },
 
   async getExamBySlug(slug: string): Promise<(Exam & { subject?: Subject }) | null> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const exam = mockExams.find(e => e.slug === slug || e.id === slug);
       if (!exam) return null;
       return { ...exam, subject: mockSubjects.find(s => s.id === exam.subject_id) };
     }
-    const client = createAdminSupabase() || supabase!;
+    const client = adminClient()!;
     // Try by slug first, then fall back to id for backward compat with UUID URLs
     const { data: bySlug } = await client.from('exams').select('*, subject:subjects(*)').eq('slug', slug).single();
     if (bySlug) return bySlug;
@@ -201,13 +230,13 @@ export const db = {
   },
 
   async getExamById(id: string): Promise<(Exam & { subject?: Subject }) | null> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const exam = mockExams.find(e => e.id === id);
       if (!exam) return null;
       return { ...exam, subject: mockSubjects.find(s => s.id === exam.subject_id) };
     }
     // Use admin client to bypass RLS for server-side reads
-    const client = createAdminSupabase() || supabase!;
+    const client = adminClient()!;
     const { data, error } = await client.from('exams').select('*, subject:subjects(*)').eq('id', id).single();
     if (error) return null;
     return data;
@@ -217,7 +246,7 @@ export const db = {
     const counts: Record<string, number> = {};
     if (examIds.length === 0) return counts;
 
-    if (isMockMode) {
+    if (isInMockMode()) {
       for (const q of mockQuestions) {
         if (q.de_id && examIds.includes(q.de_id)) {
           counts[q.de_id] = (counts[q.de_id] || 0) + 1;
@@ -226,7 +255,7 @@ export const db = {
       return counts;
     }
 
-    const client = createAdminSupabase() || supabase!;
+    const client = adminClient()!;
     const { data, error } = await client.from('questions').select('de_id').in('de_id', examIds);
     if (data && !error) {
       for (const row of data) {
@@ -239,7 +268,7 @@ export const db = {
   },
 
   async createExam(exam: Omit<Exam, 'id' | 'created_at' | 'slug'>, questionIds: string[]): Promise<Exam> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const newExam: Exam = {
         ...exam,
         id: `exam-${Date.now()}`,
@@ -252,8 +281,8 @@ export const db = {
 
     // Auto-generate slug from title
     const slug = generateExamSlug(exam.title);
-    const adminClient = createAdminSupabase();
-    if (!adminClient) {
+    const _adminCl = adminClient();
+    if (!_adminCl) {
       throw new Error('[db.createExam] Admin Supabase client unavailable. Set SUPABASE_SERVICE_ROLE_KEY.');
     }
     const { data: newExam, error: examError } = await adminClient
@@ -293,7 +322,7 @@ export const db = {
       }).filter((x): x is NonNullable<typeof x> => x != null);
 
       if (questionsToInsert.length > 0) {
-        const { error: insError } = await adminClient.from('questions').insert(questionsToInsert);
+        const { error: insError } = await _adminCl.from('questions').insert(questionsToInsert);
         if (insError) { console.error('[db.createExam] questions insert error:', insError); throw insError; }
       }
     }
@@ -301,7 +330,7 @@ export const db = {
   },
 
   async updateExam(id: string, exam: Partial<Omit<Exam, 'id' | 'created_at'>>, questionIds?: string[]): Promise<Exam> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const index = mockExams.findIndex(e => e.id === id);
       if (index === -1) throw new Error('Exam not found');
       mockExams[index] = { ...mockExams[index], ...exam };
@@ -310,16 +339,16 @@ export const db = {
       return mockExams[index];
     }
 
-    const adminClient = createAdminSupabase();
-    if (!adminClient) {
+    const _adminCl = adminClient();
+    if (!_adminCl) {
       throw new Error('[db.updateExam] Admin Supabase client unavailable. Set SUPABASE_SERVICE_ROLE_KEY.');
     }
-    const { data: updatedExam, error: examError } = await adminClient.from('exams').update(exam).eq('id', id).select().single();
+    const { data: updatedExam, error: examError } = await _adminCl.from('exams').update(exam).eq('id', id).select().single();
     if (examError) throw examError;
 
     if (questionIds) {
       // Delete old questions associated with this exam (de_id = id)
-      const { error: delError } = await adminClient.from('questions').delete().eq('de_id', id);
+      const { error: delError } = await _adminCl.from('questions').delete().eq('de_id', id);
       if (delError) throw delError;
 
       // Copy new questions from bank
@@ -351,7 +380,7 @@ export const db = {
         }).filter((x): x is NonNullable<typeof x> => x != null);
 
         if (questionsToInsert.length > 0) {
-          const { error: insError } = await adminClient.from('questions').insert(questionsToInsert);
+          const { error: insError } = await _adminCl.from('questions').insert(questionsToInsert);
           if (insError) throw insError;
         }
       }
@@ -361,23 +390,23 @@ export const db = {
   },
 
   async updateExamWithQuestions(id: string, exam: Partial<Omit<Exam, 'id' | 'created_at'>>, questionsData?: any[]): Promise<Exam> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const index = mockExams.findIndex(e => e.id === id);
       if (index === -1) throw new Error('Exam not found');
       mockExams[index] = { ...mockExams[index], ...exam };
       return mockExams[index];
     }
 
-    const adminClient = createAdminSupabase();
-    if (!adminClient) {
+    const _adminCl = adminClient();
+    if (!_adminCl) {
       throw new Error('[db.updateExamWithQuestions] Admin Supabase client unavailable.');
     }
-    const { data: updatedExam, error: examError } = await adminClient.from('exams').update(exam).eq('id', id).select().single();
+    const { data: updatedExam, error: examError } = await _adminCl.from('exams').update(exam).eq('id', id).select().single();
     if (examError) throw examError;
 
     if (questionsData) {
       // Delete old questions associated with this exam
-      const { error: delError } = await adminClient.from('questions').delete().eq('de_id', id);
+      const { error: delError } = await _adminCl.from('questions').delete().eq('de_id', id);
       if (delError) throw delError;
 
       if (questionsData.length > 0) {
@@ -394,7 +423,7 @@ export const db = {
           };
         });
 
-        const { error: insError } = await adminClient.from('questions').insert(questionsToInsert);
+        const { error: insError } = await _adminCl.from('questions').insert(questionsToInsert);
         if (insError) throw insError;
       }
     }
@@ -403,19 +432,19 @@ export const db = {
   },
 
   async deleteExam(id: string): Promise<void> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       mockExams = mockExams.filter(e => e.id !== id);
       mockQuestions = mockQuestions.filter(q => q.de_id !== id);
       return;
     }
-    const adminClient = createAdminSupabase();
-    if (!adminClient) {
+    const _adminCl = adminClient();
+    if (!_adminCl) {
       throw new Error('[db.deleteExam] Admin Supabase client unavailable. Set SUPABASE_SERVICE_ROLE_KEY.');
     }
     // Delete associated questions first
-    await adminClient.from('questions').delete().eq('de_id', id);
+    await _adminCl.from('questions').delete().eq('de_id', id);
     // Delete exam
-    const { error } = await adminClient.from('exams').delete().eq('id', id);
+    const { error } = await _adminCl.from('exams').delete().eq('id', id);
     if (error) throw error;
   },
 
@@ -423,7 +452,7 @@ export const db = {
   // QUESTIONS & ANSWERS
   // --------------------------------------------------------------------------
   async getQuestions(subjectId?: string, createdBy?: string, grade?: string): Promise<(Question & { answers: Answer[], subject?: Subject })[]> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       let qList = mockQuestions;
       if (subjectId) {
         qList = qList.filter(q => q.subject_id === subjectId);
@@ -441,7 +470,7 @@ export const db = {
       }));
     }
     
-    const client = createAdminSupabase() || supabase;
+    const client = adminClient();
     let query = client.from('questions').select('*').eq('de_id', 'bank');
     if (subjectId) {
       query = query.eq('metadata->>subject_id', subjectId);
@@ -466,7 +495,7 @@ export const db = {
   },
 
   async getQuestionsByExamId(examId: string): Promise<(Question & { answers: Answer[] })[]> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const qList = mockQuestions.filter(q => q.de_id === examId);
       return qList.map(q => ({
         ...q,
@@ -483,9 +512,9 @@ export const db = {
       }));
     }
 
-    const adminClient = createAdminSupabase();
-    if (!adminClient) {
-      console.warn('[db.getQuestionsByExamId] Admin client unavailable (missing SUPABASE_SERVICE_ROLE_KEY?), falling back to anon client — RLS may block SSR reads.');
+    const _adminCl = adminClient();
+    if (!_adminCl) {
+      console.warn('[db.getQuestionsByExamId] Admin client unavailable (missing SUPABASE_SERVICE_ROLE_KEY?), falling back to anon client Ã¢â‚¬â€ RLS may block SSR reads.');
     }
     const client = adminClient || supabase;
     if (!client) {
@@ -510,7 +539,7 @@ export const db = {
   },
 
   async createQuestion(question: Omit<Question, 'id'>, answers: Omit<Answer, 'id' | 'question_id'>[]): Promise<Question & { answers: Answer[] }> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const newQuestion: Question = {
         ...question,
         id: `q-${Date.now()}`
@@ -530,7 +559,7 @@ export const db = {
       return { ...newQuestion, answers: newAnswers };
     }
 
-    const adminClient = createAdminSupabase() || supabase;
+    const _adminCl = adminClient();
 
     // Map answers array to options array and answer string
     const options = question.type === 'sa' ? [] : answers.map(a => a.content);
@@ -588,7 +617,7 @@ export const db = {
   },
 
   async updateQuestion(id: string, question: Partial<Omit<Question, 'id'>>, answers?: (Omit<Answer, 'id' | 'question_id'> & { id?: string })[]): Promise<Question & { answers: Answer[] }> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const qIndex = mockQuestions.findIndex(q => q.id === id);
       if (qIndex === -1) throw new Error('Question not found');
       mockQuestions[qIndex] = { ...mockQuestions[qIndex], ...question };
@@ -611,7 +640,7 @@ export const db = {
       };
     }
 
-    const adminClient = createAdminSupabase() || supabase;
+    const _adminCl = adminClient();
 
     // Get existing question to preserve/merge metadata
     const { data: existingQ, error: fetchErr } = await adminClient
@@ -664,13 +693,13 @@ export const db = {
   },
 
   async deleteQuestion(id: string): Promise<void> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       mockQuestions = mockQuestions.filter((q: MockQuestion) => q.id !== id);
       mockAnswers = mockAnswers.filter(a => a.question_id !== id);
       return;
     }
-    const adminClient = createAdminSupabase() || supabase;
-    const { error } = await adminClient.from('questions').delete().eq('id', id);
+    const _adminCl = adminClient();
+    const { error } = await _adminCl.from('questions').delete().eq('id', id);
     if (error) throw error;
   },
 
@@ -678,7 +707,7 @@ export const db = {
   // ATTEMPTS & GRADING
   // --------------------------------------------------------------------------
   async getAttempts(userId: string): Promise<(Attempt & { exam?: Exam & { subject?: Subject } })[]> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const userAttempts = mockAttempts.filter(a => a.user_id === userId);
       return userAttempts.map(att => {
         const exam = mockExams.find(e => e.id === att.exam_id);
@@ -691,7 +720,7 @@ export const db = {
     }
 
     // Use admin client to bypass RLS for server-side reads
-    const client = createAdminSupabase() || supabase;
+    const client = adminClient();
     const { data, error } = await client
       .from('attempts')
       .select('*, exam:exams(*, subject:subjects(*))')
@@ -702,7 +731,7 @@ export const db = {
   },
 
   async getAttemptById(id: string): Promise<(Attempt & { exam?: Exam & { subject?: Subject } }) | null> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const att = mockAttempts.find(a => a.id === id);
       if (!att) return null;
       const exam = mockExams.find(e => e.id === att.exam_id);
@@ -714,7 +743,7 @@ export const db = {
     }
 
     // Use admin client to bypass RLS for server-side reads
-    const client = createAdminSupabase() || supabase;
+    const client = adminClient();
     const { data, error } = await client
       .from('attempts')
       .select('*, exam:exams(*, subject:subjects(*))')
@@ -725,7 +754,7 @@ export const db = {
   },
 
   async createAttempt(userId: string | null | undefined, examId: string): Promise<Attempt> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const newAttempt: Attempt = {
         id: `att-${Date.now()}`,
         user_id: userId || `guest-${Date.now()}`,
@@ -739,8 +768,8 @@ export const db = {
       return newAttempt;
     }
 
-    // Use admin client to bypass RLS — user_id is explicitly set so data is still scoped correctly
-    const adminClient = createAdminSupabase() || supabase;
+    // Use admin client to bypass RLS Ã¢â‚¬â€ user_id is explicitly set so data is still scoped correctly
+    const _adminCl = adminClient();
     const { data, error } = await adminClient
       .from('attempts')
       .insert([{ user_id: userId || null, exam_id: examId }])
@@ -751,7 +780,7 @@ export const db = {
   },
 
   async submitAttempt(attemptId: string, score: number, answersSubmitted: Record<string, any>): Promise<Attempt> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const index = mockAttempts.findIndex(a => a.id === attemptId);
       if (index === -1) throw new Error('Attempt not found');
       mockAttempts[index] = {
@@ -764,7 +793,7 @@ export const db = {
     }
 
     // Use admin client to bypass RLS for server-side updates
-    const adminClient = createAdminSupabase() || supabase;
+    const _adminCl = adminClient();
     const { data, error } = await adminClient
       .from('attempts')
       .update({
@@ -780,7 +809,7 @@ export const db = {
   },
 
   async getAllAttempts(): Promise<(Attempt & { exam?: Exam, user?: User })[]> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       return mockAttempts.map(att => ({
         ...att,
         exam: mockExams.find(e => e.id === att.exam_id),
@@ -789,7 +818,7 @@ export const db = {
     }
 
     // Use admin client to bypass RLS for server-side reads
-    const client = createAdminSupabase() || supabase;
+    const client = adminClient();
     const { data, error } = await client
       .from('attempts')
       .select('*, exam:exams(*), user:users(*)')
@@ -802,20 +831,20 @@ export const db = {
   // USER PROFILES
   // --------------------------------------------------------------------------
   async getUsers(): Promise<User[]> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       return mockUsers;
     }
-    const client = createAdminSupabase() || supabase!;
+    const client = adminClient()!;
     const { data, error } = await client.from('users').select('*').order('created_at');
     if (error) throw error;
     return data || [];
   },
 
   async getUserById(id: string): Promise<User | null> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       return mockUsers.find(u => u.id === id) || null;
     }
-    const client = createAdminSupabase() || supabase!;
+    const client = adminClient()!;
     const { data, error } = await client.from('users').select('*').eq('id', id).single();
     if (error) {
       // Fallback to mock users for mock-user-* IDs in Supabase mode
@@ -827,34 +856,36 @@ export const db = {
   },
 
   async updateUserProfile(id: string, updates: Partial<Omit<User, 'id' | 'email' | 'role' | 'created_at'>>): Promise<User> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const index = mockUsers.findIndex(u => u.id === id);
       if (index === -1) throw new Error('User not found');
       mockUsers[index] = { ...mockUsers[index], ...updates };
       return mockUsers[index];
     }
-    const adminClient = createAdminSupabase() || supabase!;
-    const { data, error } = await adminClient.from('users').update(updates).eq('id', id).select().single();
+    const _ac = adminClient()!;
+    const { data, error } = await _ac.from('users').update(updates).eq('id', id).select().single();
     if (error) throw error;
     return data;
   },
 
   async updateUserRole(id: string, role: 'student' | 'teacher' | 'admin'): Promise<User> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const index = mockUsers.findIndex(u => u.id === id);
       if (index === -1) throw new Error('User not found');
       mockUsers[index].role = role;
       return mockUsers[index];
     }
     // Using Admin Client to bypass RLS policies
-    const adminClient = createAdminSupabase();
-    if (!adminClient) {
-      // Fallback if service key is not available
-      const { data, error } = await supabase.from('users').update({ role }).eq('id', id).select().single();
+    const _ac = adminClient();
+    if (_ac) {
+      const { data, error } = await _ac.from('users').update({ role }).eq('id', id).select().single();
       if (error) throw error;
       return data;
     }
-    const { data, error } = await adminClient.from('users').update({ role }).eq('id', id).select().single();
+    // Fallback to anon client if no admin key
+    const _anon = anonClient();
+    if (!_anon) throw new Error('No Supabase client available');
+    const { data, error } = await _anon.from('users').update({ role }).eq('id', id).select().single();
     if (error) throw error;
     return data;
   },
@@ -863,7 +894,7 @@ export const db = {
   // COMMENTS
   // --------------------------------------------------------------------------
   async getComments(blogId: string): Promise<(Comment & { user?: User })[]> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const blogComments = mockComments.filter(c => c.blog_id === blogId);
       return blogComments.map(c => ({
         ...c,
@@ -874,7 +905,7 @@ export const db = {
   },
 
   async createComment(comment: Omit<Comment, 'id' | 'created_at'>): Promise<Comment> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const newComment: Comment = {
         ...comment,
         id: `cmt-${Date.now()}`,
@@ -887,7 +918,7 @@ export const db = {
   },
 
   async deleteComment(id: string): Promise<void> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       mockComments = mockComments.filter(c => c.id !== id);
       return;
     }
@@ -913,7 +944,7 @@ export const db = {
       }
     }
 
-    if (isMockMode) {
+    if (isInMockMode()) {
       let blogs = mockBlogs;
       if (createdBy) {
         blogs = blogs.filter(b => b.created_by === createdBy);
@@ -937,7 +968,7 @@ export const db = {
       }
     }
 
-    if (isMockMode) {
+    if (isInMockMode()) {
       return mockBlogs.find(b => b.id === id) || null;
     }
     return null;
@@ -959,7 +990,7 @@ export const db = {
       }
     }
 
-    if (isMockMode) {
+    if (isInMockMode()) {
       return mockBlogs.find(b => b.slug === slug) || null;
     }
     return null;
@@ -989,7 +1020,7 @@ export const db = {
   },
 
   async createBlog(blog: Omit<Blog, 'id' | 'created_at'>): Promise<Blog> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const newBlog: Blog = {
         ...blog,
         id: `blog-${Date.now()}`,
@@ -1002,7 +1033,7 @@ export const db = {
   },
 
   async updateBlog(id: string, blog: Partial<Omit<Blog, 'id' | 'created_at'>>): Promise<Blog> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const index = mockBlogs.findIndex(b => b.id === id);
       if (index === -1) throw new Error('Blog not found');
       mockBlogs[index] = { ...mockBlogs[index], ...blog };
@@ -1012,7 +1043,7 @@ export const db = {
   },
 
   async deleteBlog(id: string): Promise<void> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       mockBlogs = mockBlogs.filter(b => b.id !== id);
       return;
     }
@@ -1020,10 +1051,10 @@ export const db = {
   },
 
   // --------------------------------------------------------------------------
-  // COURSES (Khóa học)
+  // COURSES (KhÃƒÂ³a hÃ¡Â»Âc)
   // --------------------------------------------------------------------------
   async getCourses(options?: { publishedOnly?: boolean; createdBy?: string; subjectId?: string }): Promise<(Course & { subject?: Subject; lessonCount?: number; enrollmentCount?: number; teacher?: { id: string; fullname: string | null; avatar_url: string | null } })[]> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       let courses = [...mockCourses];
       if (options?.publishedOnly) courses = courses.filter(c => c.is_published);
       if (options?.createdBy) courses = courses.filter(c => c.created_by === options.createdBy);
@@ -1036,7 +1067,7 @@ export const db = {
         teacher: mockUsers.find(u => u.id === c.created_by) ? { id: c.created_by!, fullname: mockUsers.find(u => u.id === c.created_by)!.fullname, avatar_url: mockUsers.find(u => u.id === c.created_by)!.avatar_url } : undefined,
       }));
     }
-    const client = createAdminSupabase() || supabase!;
+    const client = adminClient()!;
     let query = client
       .from('courses')
       .select('*')
@@ -1086,12 +1117,12 @@ export const db = {
   },
 
   async getCourseBySlug(slug: string): Promise<(Course & { subject?: Subject }) | null> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const course = mockCourses.find(c => c.slug === slug);
       if (!course) return null;
       return { ...course, subject: mockSubjects.find(s => s.id === course.subject_id) };
     }
-    const client = createAdminSupabase() || supabase!;
+    const client = adminClient()!;
     const { data, error } = await client.from('courses').select('*').eq('slug', slug).single();
     if (error) return null;
     if (data?.subject_id) {
@@ -1102,12 +1133,12 @@ export const db = {
   },
 
   async getCourseById(id: string): Promise<(Course & { subject?: Subject }) | null> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const course = mockCourses.find(c => c.id === id);
       if (!course) return null;
       return { ...course, subject: mockSubjects.find(s => s.id === course.subject_id) };
     }
-    const client = createAdminSupabase() || supabase!;
+    const client = adminClient()!;
     const { data, error } = await client.from('courses').select('*').eq('id', id).single();
     if (error) return null;
     if (data?.subject_id) {
@@ -1118,51 +1149,51 @@ export const db = {
   },
 
   async createCourse(course: Omit<Course, 'id' | 'created_at'>): Promise<Course> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const newCourse: Course = { ...course, id: `course-${Date.now()}`, created_at: new Date().toISOString() };
       mockCourses.push(newCourse);
       return newCourse;
     }
-    const adminClient = createAdminSupabase() || supabase;
-    const { data, error } = await adminClient.from('courses').insert([course]).select().single();
+    const _adminCl = adminClient();
+    const { data, error } = await _adminCl.from('courses').insert([course]).select().single();
     if (error) throw error;
     return data;
   },
 
   async updateCourse(id: string, updates: Partial<Omit<Course, 'id' | 'created_at'>>): Promise<Course> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const idx = mockCourses.findIndex(c => c.id === id);
       if (idx === -1) throw new Error('Course not found');
       mockCourses[idx] = { ...mockCourses[idx], ...updates };
       return mockCourses[idx];
     }
-    const adminClient = createAdminSupabase() || supabase;
-    const { data, error } = await adminClient.from('courses').update(updates).eq('id', id).select().single();
+    const _adminCl = adminClient();
+    const { data, error } = await _adminCl.from('courses').update(updates).eq('id', id).select().single();
     if (error) throw error;
     return data;
   },
 
   async deleteCourse(id: string): Promise<void> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       mockCourses = mockCourses.filter(c => c.id !== id);
       mockCourseLessons = mockCourseLessons.filter(l => l.course_id !== id);
       return;
     }
-    const adminClient = createAdminSupabase() || supabase;
-    const { error } = await adminClient.from('courses').delete().eq('id', id);
+    const _adminCl = adminClient();
+    const { error } = await _adminCl.from('courses').delete().eq('id', id);
     if (error) throw error;
   },
 
   // --------------------------------------------------------------------------
-  // COURSE LESSONS (Bài giảng trong khóa học)
+  // COURSE LESSONS (BÃƒÂ i giÃ¡ÂºÂ£ng trong khÃƒÂ³a hÃ¡Â»Âc)
   // --------------------------------------------------------------------------
   async getCourseLessons(courseId: string): Promise<CourseLesson[]> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       return mockCourseLessons
         .filter(l => l.course_id === courseId)
         .sort((a, b) => a.order_index - b.order_index);
     }
-    const client = createAdminSupabase() || supabase!;
+    const client = adminClient()!;
     const { data, error } = await client
       .from('course_lessons')
       .select('*')
@@ -1173,45 +1204,45 @@ export const db = {
   },
 
   async getCourseLessonById(id: string): Promise<CourseLesson | null> {
-    if (isMockMode) return mockCourseLessons.find(l => l.id === id) || null;
-    const client = createAdminSupabase() || supabase!;
+    if (isInMockMode()) return mockCourseLessons.find(l => l.id === id) || null;
+    const client = adminClient()!;
     const { data, error } = await client.from('course_lessons').select('*').eq('id', id).single();
     if (error) return null;
     return data;
   },
 
   async createCourseLesson(lesson: Omit<CourseLesson, 'id' | 'created_at'>): Promise<CourseLesson> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const newLesson: CourseLesson = { ...lesson, id: `cl-${Date.now()}`, created_at: new Date().toISOString() };
       mockCourseLessons.push(newLesson);
       return newLesson;
     }
-    const adminClient = createAdminSupabase() || supabase;
-    const { data, error } = await adminClient.from('course_lessons').insert([lesson]).select().single();
+    const _adminCl = adminClient();
+    const { data, error } = await _adminCl.from('course_lessons').insert([lesson]).select().single();
     if (error) throw error;
     return data;
   },
 
   async updateCourseLesson(id: string, updates: Partial<Omit<CourseLesson, 'id' | 'created_at'>>): Promise<CourseLesson> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const idx = mockCourseLessons.findIndex(l => l.id === id);
       if (idx === -1) throw new Error('Lesson not found');
       mockCourseLessons[idx] = { ...mockCourseLessons[idx], ...updates };
       return mockCourseLessons[idx];
     }
-    const adminClient = createAdminSupabase() || supabase;
-    const { data, error } = await adminClient.from('course_lessons').update(updates).eq('id', id).select().single();
+    const _adminCl = adminClient();
+    const { data, error } = await _adminCl.from('course_lessons').update(updates).eq('id', id).select().single();
     if (error) throw error;
     return data;
   },
 
   async deleteCourseLesson(id: string): Promise<void> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       mockCourseLessons = mockCourseLessons.filter(l => l.id !== id);
       return;
     }
-    const adminClient = createAdminSupabase() || supabase;
-    const { error } = await adminClient.from('course_lessons').delete().eq('id', id);
+    const _adminCl = adminClient();
+    const { error } = await _adminCl.from('course_lessons').delete().eq('id', id);
     if (error) throw error;
   },
 
@@ -1219,7 +1250,7 @@ export const db = {
   // ENROLLMENTS & PROGRESS
   // --------------------------------------------------------------------------
   async enrollUserInCourse(courseId: string, userId: string): Promise<CourseEnrollment> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const exists = mockEnrollments.find(e => e.course_id === courseId && e.user_id === userId);
       if (exists) return exists;
       const newEnrollment: CourseEnrollment = {
@@ -1231,7 +1262,7 @@ export const db = {
       mockEnrollments.push(newEnrollment);
       return newEnrollment;
     }
-    const client = createAdminSupabase() || supabase!;
+    const client = adminClient()!;
     const { data, error } = await client
       .from('course_enrollments')
       .upsert({ course_id: courseId, user_id: userId }, { onConflict: 'course_id,user_id' })
@@ -1241,7 +1272,7 @@ export const db = {
   },
 
   async getUserEnrollments(userId: string): Promise<(CourseEnrollment & { course?: Course & { subject?: Subject } })[]> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       return mockEnrollments
         .filter(e => e.user_id === userId)
         .map(e => {
@@ -1252,7 +1283,7 @@ export const db = {
           };
         });
     }
-    const client = createAdminSupabase() || supabase!;
+    const client = adminClient()!;
     const { data: enrollments, error } = await client
       .from('course_enrollments')
       .select('*, course:courses(*)')
@@ -1274,8 +1305,8 @@ export const db = {
   },
 
   async isUserEnrolled(courseId: string, userId: string): Promise<boolean> {
-    if (isMockMode) return mockEnrollments.some(e => e.course_id === courseId && e.user_id === userId);
-    const client = createAdminSupabase() || supabase!;
+    if (isInMockMode()) return mockEnrollments.some(e => e.course_id === courseId && e.user_id === userId);
+    const client = adminClient()!;
     const { data } = await client
       .from('course_enrollments')
       .select('id')
@@ -1286,7 +1317,7 @@ export const db = {
   },
 
   async markLessonComplete(lessonId: string, userId: string): Promise<LessonProgress> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       const existing = mockLessonProgress.find(p => p.lesson_id === lessonId && p.user_id === userId);
       if (existing) {
         existing.completed = true;
@@ -1303,7 +1334,7 @@ export const db = {
       mockLessonProgress.push(newProgress);
       return newProgress;
     }
-    const client = createAdminSupabase() || supabase!;
+    const client = adminClient()!;
     const { data, error } = await client
       .from('lesson_progress')
       .upsert({ lesson_id: lessonId, user_id: userId, completed: true, completed_at: new Date().toISOString() }, { onConflict: 'lesson_id,user_id' })
@@ -1313,7 +1344,7 @@ export const db = {
   },
 
   async getLessonProgress(userId: string, courseId?: string): Promise<LessonProgress[]> {
-    if (isMockMode) {
+    if (isInMockMode()) {
       let progress = mockLessonProgress.filter(p => p.user_id === userId);
       if (courseId) {
         const lessonIds = mockCourseLessons.filter(l => l.course_id === courseId).map(l => l.id);
@@ -1321,7 +1352,7 @@ export const db = {
       }
       return progress;
     }
-    const client = createAdminSupabase() || supabase!;
+    const client = adminClient()!;
     let query = client.from('lesson_progress').select('*').eq('user_id', userId);
     if (courseId) {
       const { data: lessons } = await client.from('course_lessons').select('id').eq('course_id', courseId);
@@ -1332,4 +1363,8 @@ export const db = {
     return data || [];
   }
 };
+
+
+
+
 

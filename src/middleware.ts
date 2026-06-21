@@ -1,11 +1,24 @@
 import { defineMiddleware } from 'astro:middleware';
-import { isMockMode, createServerSupabase } from './lib/supabase';
-import { db } from './services/db';
+import { isMockModeForEnv, createServerSupabase } from './lib/supabase';
+import { db, setRuntimeEnv } from './services/db';
 
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const url = new URL(context.url);
   const path = url.pathname;
+
+  // Extract Cloudflare Workers runtime env (available on CF Pages, undefined on local dev)
+  // This contains vars from wrangler.toml [vars] and CF Dashboard secrets.
+  const runtimeEnv = (context.locals as any).runtime?.env as Record<string, string | undefined> | undefined;
+
+  // Store runtimeEnv in locals so pages/db service can use it
+  context.locals.runtimeEnv = runtimeEnv;
+
+  // Inject runtime env into db service (must be called before any db.* calls)
+  setRuntimeEnv(runtimeEnv);
+
+  // Determine mock mode using runtime env (correct on Cloudflare Pages)
+  const mockMode = isMockModeForEnv(runtimeEnv);
 
   // Initialize locals
   context.locals.user = null;
@@ -18,13 +31,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
   }
 
-  if (!context.locals.user && !isMockMode) {
+  if (!context.locals.user && !mockMode) {
     // In production, verify session cookies with Supabase
     const accessToken = context.cookies.get('sb-access-token')?.value;
     const refreshToken = context.cookies.get('sb-refresh-token')?.value;
 
     if (accessToken) {
-      const supabaseServer = createServerSupabase();
+      const supabaseServer = createServerSupabase(runtimeEnv);
       if (supabaseServer) {
         try {
           // Set session from cookies - this also handles token refresh automatically
