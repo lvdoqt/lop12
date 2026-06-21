@@ -41,7 +41,7 @@ const user = Astro.locals.user;
 const activeSidebar = showSidebar && user !== null;
 
 // Canonical URL — dùng URL hiện tại nếu không được override
-const siteUrl = 'https://lop12.com';
+const siteUrl = 'https://lms.lop12.com';
 const canonicalUrl = canonical
   ? (canonical.startsWith('http') ? canonical : `${siteUrl}${canonical}`)
   : `${siteUrl}${Astro.url.pathname}`;

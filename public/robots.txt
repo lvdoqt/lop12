@@ -1,4 +1,4 @@
-# robots.txt — lop12.com
+# robots.txt — lms.lop12.com
 # Tự động hóa lập chỉ mục bởi các công cụ tìm kiếm
 
 User-agent: *
@@ -30,4 +30,4 @@ Disallow: /exams/*/take
 Disallow: /exams/*/result
 
 # Sitemap XML
-Sitemap: https://lop12.com/sitemap.xml
+Sitemap: https://lms.lop12.com/sitemap.xml

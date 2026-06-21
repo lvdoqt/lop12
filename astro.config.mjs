@@ -8,7 +8,7 @@ import rehypeKatex from 'rehype-katex';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://lop12.com',
+  site: 'https://lms.lop12.com',
   output: 'server',
   adapter: cloudflare(),
   integrations: [
