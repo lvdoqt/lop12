@@ -52,7 +52,7 @@ supabase/migrations/    — SQL schema + RLS policies (apply in order)
 
 | Route | Access |
 |-------|--------|
-| `/`, `/blog*`, `/ly-thuyet*`, `/[subject]/[slug]`, `/exams/[id]` (info only) | Public |
+| `/`, `/ly-thuyet*`, `/[subject]/[slug]`, `/exams/[id]` (info only) | Public |
 | `/dashboard`, `/profile`, `/ai-chat`, `/exams/[id]/take*`, `/exams/[id]/result/*` | Login required |
 | `/admin/*` | Teacher or admin only |
 

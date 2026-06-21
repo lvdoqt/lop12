@@ -5,7 +5,6 @@ User-agent: *
 
 # Trang công khai — cho phép lập chỉ mục
 Allow: /
-Allow: /blog
 Allow: /subjects
 Allow: /lessons
 Allow: /about

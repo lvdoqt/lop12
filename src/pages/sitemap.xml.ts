@@ -5,7 +5,6 @@ import { db } from '../services/db';
 // Danh sách các trang tĩnh (không yêu cầu đăng nhập & public)
 const STATIC_PAGES = [
   { url: '/',         changefreq: 'daily',   priority: '1.0' },
-  { url: '/blog',     changefreq: 'daily',   priority: '0.9' },
   { url: '/ly-thuyet', changefreq: 'weekly',  priority: '0.8' },
   { url: '/about',    changefreq: 'monthly', priority: '0.6' },
   { url: '/guide',    changefreq: 'monthly', priority: '0.6' },
@@ -19,8 +18,7 @@ export const GET: APIRoute = async ({ request }) => {
   const origin = new URL(request.url).origin;
 
   // Lấy dữ liệu động song song
-  const [blogs, subjects, exams, lessonEntries] = await Promise.all([
-    db.getBlogs(),
+  const [subjects, exams, lessonEntries] = await Promise.all([
     db.getSubjects(),
     db.getExams(),
     getCollection('lessons'),
@@ -82,19 +80,7 @@ export const GET: APIRoute = async ({ request }) => {
   </url>`);
   }
 
-  // ── Bài blog (/blog/[slug]) ───────────────────────────────────────────────────
-  for (const blog of blogs) {
-    const lastmod = blog.created_at
-      ? new Date(blog.created_at).toISOString()
-      : now;
-    urls.push(`
-  <url>
-    <loc>${origin}/blog/${blog.slug}</loc>
-    <lastmod>${lastmod}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.70</priority>
-  </url>`);
-  }
+
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset

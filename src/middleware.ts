@@ -73,13 +73,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const isAuthPage = path === '/login' || path === '/register' || path === '/forgot-password' || path === '/reset-password';
 
   // PUBLIC pages - no login needed:
-  //   /blog, /blog/[slug]        — Blog posts
   //   /ly-thuyet, /ly-thuyet/[slug] — Subject list & detail
   //   /[subject]/[slug]          — Lesson content
   //   /exams/[id]                — Exam info page (shows title, time, question count, lock icon if has password)
   //   /, /about, /contact, /guide, /privacy, /sitemap
   const isPublicContent =
-    path.startsWith('/blog') ||
     path.startsWith('/ly-thuyet') ||
     /^\/[a-z0-9-]+-12\/[a-z0-9-]+$/.test(path) || // e.g., /toan-12/bai-1
     path === '/';
@@ -158,14 +156,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
     // Trang chủ: 1h browser, 2h CDN, stale 24h
     if (path === '/') {
       response.headers.set('Cache-Control', 'public, max-age=3600, s-maxage=7200, stale-while-revalidate=86400');
-    }
-    // Blog index & subjects index: 30m browser, 1h CDN, stale 12h
-    else if (path === '/blog' || path === '/ly-thuyet') {
-      response.headers.set('Cache-Control', 'public, max-age=1800, s-maxage=3600, stale-while-revalidate=43200');
-    }
-    // Blog bài viết: 1h browser, 24h CDN, stale 7 ngày
-    else if (path.startsWith('/blog/') && path.length > 6) {
-      response.headers.set('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800');
     }
     // Môn học & Bài học: 1h browser, 24h CDN
     else if (path.startsWith('/ly-thuyet/') || /^\/[a-z0-9-]+-12\/[a-z0-9-]+$/.test(path)) {
