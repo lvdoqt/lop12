@@ -38,47 +38,43 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
   }
 
-  if (!context.locals.user && !mockMode) {
+  if (!context.locals.user) {
     // In production, verify session cookies with Supabase
     const accessToken = context.cookies.get('sb-access-token')?.value;
     const refreshToken = context.cookies.get('sb-refresh-token')?.value;
 
     if (accessToken) {
       const supabaseServer = createServerSupabase(runtimeEnv);
-      if (supabaseServer) {
-        try {
-          // Set session from cookies - this also handles token refresh automatically
-          const { data: { session }, error: sessionError } = await supabaseServer.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken || ''
-          });
-          
-          if (!sessionError && session?.user) {
-            // Use the server client (with session set) to query public.users
-            // db.getUserById() uses the global supabase client which has no auth context on server side
-            const { data: profile, error: profileError } = await supabaseServer
-              .from('users')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
+      try {
+        // Set session from cookies - this also handles token refresh automatically
+        const { data: { session }, error: sessionError } = await supabaseServer.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken || ''
+        });
+        
+        if (!sessionError && session?.user) {
+          const { data: profile, error: profileError } = await supabaseServer
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
 
-            if (profile && !profileError) {
-              context.locals.user = profile;
-            } else {
-              // Graceful fallback profile
-              context.locals.user = {
-                id: session.user.id,
-                email: session.user.email || '',
-                fullname: session.user.user_metadata?.fullname || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Học Sinh',
-                avatar_url: session.user.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/adventurer/svg?seed=default',
-                role: 'student',
-                created_at: new Date().toISOString(),
-              };
-            }
+          if (profile && !profileError) {
+            context.locals.user = profile;
+          } else {
+            // Graceful fallback profile
+            context.locals.user = {
+              id: session.user.id,
+              email: session.user.email || '',
+              fullname: session.user.user_metadata?.fullname || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Học Sinh',
+              avatar_url: session.user.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/adventurer/svg?seed=default',
+              role: 'student',
+              created_at: new Date().toISOString(),
+            };
           }
-        } catch (e) {
-          console.error('Middleware auth check failed:', e);
         }
+      } catch (e) {
+        console.error('Middleware auth check failed:', e);
       }
     }
   }

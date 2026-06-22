@@ -30,7 +30,7 @@ const { user } = Astro.props;
         dục Phổ thông lớp 12 của Bộ Giáo dục và Đào tạo Việt Nam.
       </p>
       <p class="text-xs text-[#A89888] dark:text-[#6A6A8A] font-semibold">
-        &copy; {new Date().getFullYear()} Lớp 12 LMS. Thầy Đồ.
+        &copy; {new Date().getFullYear()} Lớp 12 LMS. Thầy Đồ - v1.1.
       </p>
       {
         !user && (
@@ -66,13 +66,15 @@ const { user } = Astro.props;
           <a
             href="/ly-thuyet"
             class="hover:text-vermillion-500 dark:hover:text-vermillion-400 transition-colors"
-            >Lý thuyết</a>
+            >Lý thuyết</a
+          >
         </li>
         <li>
           <a
             href="/de-thi"
             class="hover:text-vermillion-500 dark:hover:text-vermillion-400 transition-colors"
-            >Đề thi</a>
+            >Đề thi</a
+          >
         </li>
         <li>
           <a
