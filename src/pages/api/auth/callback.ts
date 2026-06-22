@@ -1,7 +1,8 @@
 import type { APIRoute } from 'astro';
+import { createClient } from '@supabase/supabase-js';
+import { resolveEnv } from '../../../lib/supabase';
 
 export const prerender = false;
-import { createClient } from '@supabase/supabase-js';
 
 function getCookieOptions(maxAge: number) {
   const isProd = import.meta.env.PROD;
@@ -20,7 +21,8 @@ function getCookieOptions(maxAge: number) {
  * Supabase redirects here after Google OAuth.
  * URL contains ?code=... which we exchange for a session.
  */
-export const GET: APIRoute = async ({ url, cookies, redirect }) => {
+export const GET: APIRoute = async (context) => {
+  const { url, cookies, redirect, locals } = context;
   const code = url.searchParams.get('code');
   const error = url.searchParams.get('error');
   const errorDescription = url.searchParams.get('error_description');
@@ -35,8 +37,10 @@ export const GET: APIRoute = async ({ url, cookies, redirect }) => {
     return redirect('/login?error=missing_code&error_description=Thiếu mã xác thực từ Google.');
   }
 
-  const supabaseUrl = import.meta.env.SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.SUPABASE_ANON_KEY;
+  // Use resolveEnv with Cloudflare runtime env (passed via locals by middleware)
+  const runtimeEnv = (locals as any).runtimeEnv as Record<string, string | undefined> | undefined;
+  const supabaseUrl = resolveEnv('PUBLIC_SUPABASE_URL', runtimeEnv);
+  const supabaseAnonKey = resolveEnv('PUBLIC_SUPABASE_ANON_KEY', runtimeEnv);
 
   if (!supabaseUrl || !supabaseAnonKey) {
     return redirect('/login?error=config_error&error_description=Cấu hình máy chủ không hợp lệ.');
