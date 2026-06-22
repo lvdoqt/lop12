@@ -1,15 +1,22 @@
 import { defineMiddleware } from 'astro:middleware';
 import { isMockModeForEnv, createServerSupabase } from './lib/supabase';
 import { db, setRuntimeEnv } from './services/db';
+// @ts-ignore
+import { env } from 'cloudflare:workers';
 
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const url = new URL(context.url);
   const path = url.pathname;
 
-  // Extract Cloudflare Workers runtime env (available on CF Pages, undefined on local dev)
+  // Extract Cloudflare Workers runtime env
   // This contains vars from wrangler.toml [vars] and CF Dashboard secrets.
-  const runtimeEnv = (context.locals as any).runtime?.env as Record<string, string | undefined> | undefined;
+  let runtimeEnv: Record<string, string | undefined> | undefined = undefined;
+  try {
+    runtimeEnv = env;
+  } catch (e) {
+    console.warn('Could not read env from cloudflare:workers:', e);
+  }
 
   // Store runtimeEnv in locals so pages/db service can use it
   context.locals.runtimeEnv = runtimeEnv;

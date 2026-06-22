@@ -285,7 +285,7 @@ export const db = {
     if (!_adminCl) {
       throw new Error('[db.createExam] Admin Supabase client unavailable. Set SUPABASE_SERVICE_ROLE_KEY.');
     }
-    const { data: newExam, error: examError } = await adminClient
+    const { data: newExam, error: examError } = await _adminCl
       .from('exams')
       .insert([{ ...exam, slug }])
       .select()
@@ -294,7 +294,7 @@ export const db = {
 
     if (questionIds.length > 0) {
       // Fetch the template questions from the bank
-      const { data: templates, error: tempError } = await adminClient
+      const { data: templates, error: tempError } = await _adminCl
         .from('questions')
         .select('*')
         .in('id', questionIds);
@@ -353,7 +353,7 @@ export const db = {
 
       // Copy new questions from bank
       if (questionIds.length > 0) {
-        const { data: templates, error: tempError } = await adminClient
+        const { data: templates, error: tempError } = await _adminCl
           .from('questions')
           .select('*')
           .in('id', questionIds);
@@ -514,9 +514,9 @@ export const db = {
 
     const _adminCl = adminClient();
     if (!_adminCl) {
-      console.warn('[db.getQuestionsByExamId] Admin client unavailable (missing SUPABASE_SERVICE_ROLE_KEY?), falling back to anon client Ã¢â‚¬â€ RLS may block SSR reads.');
+      console.warn('[db.getQuestionsByExamId] Admin client unavailable (missing SUPABASE_SERVICE_ROLE_KEY?), falling back to anon client — RLS may block SSR reads.');
     }
-    const client = adminClient || supabase;
+    const client = _adminCl || supabase;
     if (!client) {
       console.error('[db.getQuestionsByExamId] No Supabase client available (both admin and anon are null).');
       return [];
@@ -582,7 +582,7 @@ export const db = {
     const de_id = 'bank';
     
     // Find next so_cau for 'bank'
-    const { data: countData, error: countError } = await adminClient
+    const { data: countData, error: countError } = await _adminCl!
       .from('questions')
       .select('so_cau')
       .eq('de_id', de_id)
@@ -605,7 +605,7 @@ export const db = {
       image_url: null
     };
 
-    const { data: newQ, error: qError } = await adminClient
+    const { data: newQ, error: qError } = await _adminCl!
       .from('questions')
       .insert([dbInsert])
       .select()
@@ -643,7 +643,7 @@ export const db = {
     const _adminCl = adminClient();
 
     // Get existing question to preserve/merge metadata
-    const { data: existingQ, error: fetchErr } = await adminClient
+    const { data: existingQ, error: fetchErr } = await _adminCl!
       .from('questions')
       .select('*')
       .eq('id', id)
@@ -681,7 +681,7 @@ export const db = {
       dbUpdate.answer = answerStr;
     }
 
-    const { data: updatedQ, error: qError } = await adminClient
+    const { data: updatedQ, error: qError } = await _adminCl!
       .from('questions')
       .update(dbUpdate)
       .eq('id', id)
@@ -768,9 +768,9 @@ export const db = {
       return newAttempt;
     }
 
-    // Use admin client to bypass RLS Ã¢â‚¬â€ user_id is explicitly set so data is still scoped correctly
+    // Use admin client to bypass RLS — user_id is explicitly set so data is still scoped correctly
     const _adminCl = adminClient();
-    const { data, error } = await adminClient
+    const { data, error } = await _adminCl!
       .from('attempts')
       .insert([{ user_id: userId || null, exam_id: examId }])
       .select()
@@ -794,7 +794,7 @@ export const db = {
 
     // Use admin client to bypass RLS for server-side updates
     const _adminCl = adminClient();
-    const { data, error } = await adminClient
+    const { data, error } = await _adminCl!
       .from('attempts')
       .update({
         score,
