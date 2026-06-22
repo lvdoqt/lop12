@@ -20,7 +20,7 @@ if (isMockMode) {
 } else {
   const creatorIds = [...new Set(allExams.map(e => e.created_by).filter(Boolean))] as string[];
   if (creatorIds.length > 0) {
-    const adminClient = createAdminSupabase() || supabase;
+    const adminClient = createAdminSupabase(Astro.locals.runtimeEnv) || supabase;
     const { data: users } = await adminClient.from('users').select('id, fullname').in('id', creatorIds);
     if (users) {
       users.forEach(u => { creatorMap[u.id] = u.fullname || 'Giáo viên'; });

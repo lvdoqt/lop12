@@ -1,4 +1,4 @@
-﻿import { isMockMode, isMockModeForEnv, supabase, createAdminSupabase, createServerSupabase } from '../lib/supabase';
+import { isMockMode, isMockModeForEnv, supabase, createAdminSupabase, createServerSupabase } from '../lib/supabase';
 import type { Subject, Lesson, Question, Answer, Exam, Attempt, User, Blog, Comment, Course, CourseLesson, CourseEnrollment, LessonProgress } from '../types';
 
 // Ã¢â€â‚¬Ã¢â€â‚¬ Cloudflare runtime env injection Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
@@ -1085,7 +1085,7 @@ export const db = {
     const subjectIds = [...new Set(courses.map((c: any) => c.subject_id).filter(Boolean))];
     let subjectsMap: Record<string, any> = {};
     if (subjectIds.length > 0) {
-      const { data: subData } = await supabase!.from('subjects').select('*').in('id', subjectIds);
+      const { data: subData } = await client.from('subjects').select('*').in('id', subjectIds);
       if (subData) subjectsMap = Object.fromEntries(subData.map((s: any) => [s.id, s]));
     }
 
@@ -1126,7 +1126,7 @@ export const db = {
     const { data, error } = await client.from('courses').select('*').eq('slug', slug).single();
     if (error) return null;
     if (data?.subject_id) {
-      const { data: subData } = await supabase!.from('subjects').select('*').eq('id', data.subject_id).single();
+      const { data: subData } = await client.from('subjects').select('*').eq('id', data.subject_id).single();
       return { ...data, subject: subData || undefined };
     }
     return data;
@@ -1142,7 +1142,7 @@ export const db = {
     const { data, error } = await client.from('courses').select('*').eq('id', id).single();
     if (error) return null;
     if (data?.subject_id) {
-      const { data: subData } = await supabase!.from('subjects').select('*').eq('id', data.subject_id).single();
+      const { data: subData } = await client.from('subjects').select('*').eq('id', data.subject_id).single();
       return { ...data, subject: subData || undefined };
     }
     return data;
@@ -1295,7 +1295,7 @@ export const db = {
     )];
     let subjectsMap: Record<string, any> = {};
     if (subjectIds.length > 0) {
-      const { data: subData } = await supabase!.from('subjects').select('*').in('id', subjectIds);
+      const { data: subData } = await client.from('subjects').select('*').in('id', subjectIds);
       if (subData) subjectsMap = Object.fromEntries(subData.map((s: any) => [s.id, s]));
     }
     return enrollments.map((e: any) => ({
