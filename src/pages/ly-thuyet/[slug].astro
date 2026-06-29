@@ -1,0 +1,145 @@
+---
+import { getCollection } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+import LessonCard from '../../components/LessonCard.astro';
+import AdUnit from '../../components/AdUnit.astro';
+import { db } from '../../services/db';
+
+export const prerender = false;
+
+const { slug } = Astro.params;
+
+const subjects = await db.getSubjects();
+const subject = subjects.find(s => s.slug === slug);
+
+if (!subject) {
+  return Astro.redirect('/ly-thuyet');
+}
+
+// Fetch lessons for this subject using Content Collections
+const lessonEntries = await getCollection('lessons');
+const matchingEntries = lessonEntries
+  .filter(entry => entry.id.startsWith(subject.slug + '/'))
+  .sort((a, b) => {
+    const orderA = a.data.lessons?.[0]?.lesson_id || 0;
+    const orderB = b.data.lessons?.[0]?.lesson_id || 0;
+    return orderA - orderB;
+  });
+
+const lessons = matchingEntries.map(entry => {
+  const lessonData = entry.data.lessons?.[0] || {};
+  return {
+    id: entry.id,
+    subject_id: subject.id,
+    title: lessonData.name || entry.id,
+    slug: entry.id.split('/').pop() || entry.id,
+    video_url: lessonData.video_url || null,
+    description: lessonData.description || '',
+    content: '',
+    created_at: new Date().toISOString()
+  };
+});
+
+const getSubjectColor = (slug: string) => {
+  if (slug === 'toan-12') return 'blue';
+  if (slug === 'vat-ly-12') return 'purple';
+  if (slug === 'hoa-hoc-12') return 'emerald';
+  if (slug === 'sinh-hoc-12') return 'emerald';
+  if (slug === 'tieng-anh-12') return 'amber';
+  return 'vermillion';
+};
+
+const color = getSubjectColor(subject.slug);
+
+// ── JSON-LD Course Schema ─────────────────────────────────────────────────────────────────
+const siteUrl = 'https://lms.lop12.com';
+
+// Mô tả chi tiết theo từng môn học
+const subjectDescriptions: Record<string, string> = {
+  'toan-12':     `Học và luyện thi môn Toán lớp 12: Hàm số và đồ thị, Tích phân, Số phức, Hình học không gian, Xác suất. ${lessons.length} bài giảng và nhiều đề thi thử THPT.`,
+  'vat-ly-12':   `Học và luyện thi môn Vật lý lớp 12: Dao động cơ, Sóng cơ, Điện xoay chiều, Sóng ánh sáng, Hạt nhân. ${lessons.length} bài giảng và đề thi trắc nghiệm bám sát cấu trúc mới.`,
+  'hoa-hoc-12':  `Học và luyện thi môn Hóa học lớp 12: Este, Lipit, Amin, Aminoaxit, Polime, Kim loại kiềm. ${lessons.length} bài giảng lý thuyết và bài tập ôn thi.`,
+  'sinh-hoc-12': `Học và luyện thi môn Sinh học lớp 12: Di truyền học phân tử, Quy luật di truyền, Tiến hóa, Sinh thái học. ${lessons.length} bài giảng chi tiết.`,
+  'ngu-van-12':  `Học và luyện thi môn Ngữ Văn lớp 12: Đọc hiểu văn bản, Nghị luận xã hội, Nghị luận văn học, Tác phẩm trọng tâm. ${lessons.length} bài giảng ôn thi THPT.`,
+  'lich-su-12':  `Học và luyện thi môn Lịch Sử lớp 12: Lịch sử Việt Nam hiện đại, Lịch sử thế giới, Cách mạng Việt Nam. ${lessons.length} bài giảng chính sách mới.`,
+  'dia-ly-12':   `Học và luyện thi môn Địa Lý lớp 12: Địa lý tự nhiên Việt Nam, Địa lý kinh tế - xã hội, Dân số. ${lessons.length} bài giảng cập nhật.`,
+  'ktpl-12':     `Học và luyện thi môn KTPL lớp 12: Kinh tế vĩ mô, Pháp luật Việt Nam, Quyền công dân, Hôn nhân gia đình. ${lessons.length} bài giảng cập nhật.`,
+  'tieng-anh-12':  `Học và luyện thi môn Tiếng Anh lớp 12: Ngữ pháp nâng cao, Phát âm, Từ vựng, Đọc hiểu và Viết luận. ${lessons.length} bài giảng chuẩn cấu trúc mới.`,
+  'tin-hoc-12':  `Học và luyện thi môn Tin Học lớp 12: Lập trình Python, Cơ sở dữ liệu, Mạng máy tính. ${lessons.length} bài giảng thực hành.`,
+  'cong-nghe-12':  `Học và luyện thi môn Công Nghệ lớp 12: Điện tử, Cơ khí, Công nghệ thông tin. ${lessons.length} bài giảng thực tiễn.`,
+};
+const subjectDescription = subjectDescriptions[subject.slug] ||
+  `Học và luyện thi môn ${subject.name} lớp 12. Cổng thông tin tự học và thi trắc nghiệm trực tuyến. ${lessons.length} bài giảng, nhiều đề thi thử THPT.`;
+
+const courseSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Course',
+  name: `${subject.name} - Lớp 12 LMS`,
+  description: subjectDescription,
+  url: `${siteUrl}/subjects/${subject.slug}`,
+  provider: {
+    '@type': 'Organization',
+    name: 'Lớp 12 LMS',
+    url: siteUrl,
+  },
+  educationalLevel: 'Lớp 12 - THPT',
+  inLanguage: 'vi',
+  numberOfCredits: lessons.length,
+};
+
+const breadcrumbs = [
+  { name: 'Môn học', url: '/ly-thuyet' },
+  { name: subject.name, url: `/ly-thuyet/${subject.slug}` },
+];
+---
+
+<Layout
+  title={subject.name}
+  description={subjectDescription}
+  structuredData={courseSchema}
+  breadcrumbs={breadcrumbs}
+>
+  <div class="space-y-6">
+    <!-- Back breadcrumb & Header -->
+    <div>
+      <a href="/ly-thuyet" class="inline-flex items-center text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-slate-350 transition-colors uppercase tracking-wider mb-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        Tất cả môn học
+      </a>
+      
+      <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">{subject.name}</h1>
+      <p class="text-sm text-gray-500 dark:text-slate-455 mt-1">
+        Cổng thông tin tự học và luyện thi trắc nghiệm môn {subject.name} lớp 12.
+      </p>
+    </div>
+
+    <!-- Section header -->
+    <div class="border-b border-gray-200 dark:border-slate-800 flex space-x-8">
+      <div class="pb-4 px-1 text-sm font-bold border-b-2 border-blue-600 text-blue-600 dark:border-blue-500 dark:text-blue-400">
+        Bài giảng lý thuyết ({lessons.length})
+      </div>
+    </div>
+
+    <!-- Contents -->
+    <div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {lessons.length === 0 ? (
+          <div class="col-span-full text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-gray-250 dark:border-slate-800">
+            <p class="text-sm text-gray-500 dark:text-slate-400">Môn học này hiện chưa có bài giảng nào được đăng tải.</p>
+          </div>
+        ) : (
+          lessons.map(lesson => (
+            <LessonCard lesson={lesson} subject={subject} color={color} />
+          ))
+        )}
+      </div>
+    </div>
+
+    <!-- Ad Unit cuối trang môn học -->
+    <AdUnit type="responsive" adSlot="1122334455" class="mt-2" />
+  </div>
+</Layout>
+
+
