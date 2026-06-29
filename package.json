@@ -16,7 +16,6 @@
     "@astrojs/cloudflare": "^14.0.1",
     "@astrojs/node": "^11.0.0",
     "@astrojs/react": "^5.0.7",
-    "@rollup/rollup-win32-x64-msvc": "^4.62.2",
     "@supabase/supabase-js": "^2.107.0",
     "@swc/core": "^1.15.43",
     "@tailwindcss/typography": "^0.5.19",
