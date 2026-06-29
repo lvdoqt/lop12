@@ -60,19 +60,6 @@ GEMINI_API_KEY=your-gemini-api-key-if-using-ai
 
 ---
 
-## 🔐 Tài khoản thử nghiệm (Mock Mode)
-
-Khi chạy ở chế độ Mock Mode, bạn có thể đăng nhập bằng các tài khoản mẫu định sẵn hiển thị trực tiếp trên giao diện Đăng nhập:
-* **Học sinh:** `student@lop12.vn` (Xem bài học, thi trắc nghiệm, chat AI, theo dõi biểu đồ).
-* **Giáo viên:** `teacher@lop12.vn` (Toàn quyền quản trị bài học, ngân hàng câu hỏi, đề thi).
-* **Admin:** `admin@lop12.vn` (Toàn quyền quản lý hệ thống, phân quyền người dùng).
-
----
-
-## 🚀 Hướng dẫn triển khai dự án (Deployment Guide)
-
-Astro 6 hỗ trợ biên dịch và deploy cực kỳ mượt mà lên nhiều nền tảng Cloud:
-
 ### 1. Cloudflare Pages
 1. Thay thế adapter trong file `astro.config.mjs` bằng `@astrojs/cloudflare`:
    ```bash
@@ -89,32 +76,3 @@ Astro 6 hỗ trợ biên dịch và deploy cực kỳ mượt mà lên nhiều n
 2. Đẩy code lên GitHub.
 3. Liên kết dự án GitHub với Cloudflare Pages Dashboard. Chọn framework **Astro** và thiết lập các biến môi trường (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) trong phần cấu hình biến của Cloudflare.
 
-### 2. Vercel
-1. Cài đặt adapter Vercel:
-   ```bash
-   npm install @astrojs/vercel
-   ```
-   *Cấu hình trong `astro.config.mjs`:*
-   ```javascript
-   import vercel from '@astrojs/vercel';
-   export default defineConfig({
-     output: 'server',
-     adapter: vercel()
-   });
-   ```
-2. Đẩy code lên GitHub và nhập dự án vào Vercel Dashboard. Vercel sẽ tự động nhận diện Astro và build dự án SSR. Đừng quên dán các biến môi trường vào phần settings của Vercel.
-
-### 3. Netlify
-1. Cài đặt adapter Netlify:
-   ```bash
-   npm install @astrojs/netlify
-   ```
-   *Cấu hình trong `astro.config.mjs`:*
-   ```javascript
-   import netlify from '@astrojs/netlify';
-   export default defineConfig({
-     output: 'server',
-     adapter: netlify()
-   });
-   ```
-2. Kết nối GitHub với Netlify Dashboard để kích hoạt tính năng tự động build và deploy liên tục (CI/CD). Khai báo các thông số kết nối Supabase trong phần Environment Variables.
