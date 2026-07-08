@@ -13,7 +13,8 @@ const adapter = isDev
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://lms.lop12.com',
+  site: 'https://lop12.com',
+  base: '/lms',
   output: 'server',
   adapter,
   integrations: [react()],
