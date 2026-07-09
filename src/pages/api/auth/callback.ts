@@ -7,12 +7,11 @@ export const prerender = false;
 const _SUPABASE_URL_DEFAULT = 'https://dwezesrukmwygqnmefbz.supabase.co';
 const _SUPABASE_ANON_KEY_DEFAULT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3ZXplc3J1a213eWdxbm1lZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMzA0NjIsImV4cCI6MjA5NTcwNjQ2Mn0.LCojdG6LGAQDHw9ewbXFiJOFIvrFYNPZLr4KRNmystw';
 
-function getCookieOptions(maxAge: number) {
-  const isProd = import.meta.env.PROD;
+function getCookieOptions(maxAge: number, isSecure: boolean) {
   return {
     path: '/',
     httpOnly: true,
-    secure: isProd,
+    secure: isSecure,
     sameSite: 'lax' as const,
     maxAge,
   };
@@ -62,7 +61,8 @@ export const GET: APIRoute = async (context) => {
     }
 
     // Set session cookies on the redirect response
-    const cookieOpts = getCookieOptions(60 * 60 * 24 * 7);
+    const isSecure = url.protocol === 'https:';
+    const cookieOpts = getCookieOptions(60 * 60 * 24 * 7, isSecure);
     
     cookies.set('sb-access-token', data.session.access_token, cookieOpts);
     if (data.session.refresh_token) {

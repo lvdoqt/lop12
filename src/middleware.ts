@@ -81,10 +81,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
             };
 
             // Rotate cookies with new tokens
+            const isSecure = url.protocol === 'https:';
             const cookieOpts = {
               path: '/',
               httpOnly: true,
-              secure: true,
+              secure: isSecure,
               sameSite: 'lax' as const,
               maxAge: 60 * 60 * 24 * 7,
             };

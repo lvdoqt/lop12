@@ -2,24 +2,24 @@ import type { APIRoute } from 'astro';
 
 export const prerender = false;
 
-function getCookieOptions(maxAge: number) {
-  const isProd = import.meta.env.PROD;
+function getCookieOptions(maxAge: number, isSecure: boolean) {
   return {
     path: '/',
     httpOnly: true,
-    secure: isProd,
+    secure: isSecure,
     sameSite: 'lax' as const,
     maxAge,
   };
 }
 
-export const POST: APIRoute = async ({ request, cookies }) => {
+export const POST: APIRoute = async ({ request, cookies, url }) => {
   try {
+    const isSecure = url.protocol === 'https:';
     const body = await request.json();
     
     // Support both Supabase tokens and Mock mode user ID
     if (body.mockUserId) {
-      cookies.set('mock-user-id', body.mockUserId, getCookieOptions(60 * 60 * 24 * 7));
+      cookies.set('mock-user-id', body.mockUserId, getCookieOptions(60 * 60 * 24 * 7, isSecure));
       return new Response(JSON.stringify({ success: true }), { status: 200 });
     }
 
@@ -28,7 +28,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       return new Response(JSON.stringify({ error: 'Access token is required' }), { status: 400 });
     }
 
-    const cookieOpts = getCookieOptions(60 * 60 * 24 * 7);
+    const cookieOpts = getCookieOptions(60 * 60 * 24 * 7, isSecure);
 
     cookies.set('sb-access-token', access_token, cookieOpts);
     if (refresh_token) {
@@ -41,8 +41,9 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 };
 
-export const DELETE: APIRoute = async ({ cookies }) => {
-  const cookieOpts = getCookieOptions(0);
+export const DELETE: APIRoute = async ({ cookies, url }) => {
+  const isSecure = url.protocol === 'https:';
+  const cookieOpts = getCookieOptions(0, isSecure);
   // Set maxAge=0 to expire immediately
   const deleteOpts = { ...cookieOpts, maxAge: 0, expires: new Date(0) };
 

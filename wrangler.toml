@@ -1,5 +1,5 @@
-name = "lop12"
-compatibility_date = "2025-04-01"
+name = "lop12lms"
+compatibility_date = "2026-04-01"
 compatibility_flags = ["nodejs_compat"]
 assets = { binding = "ASSETS", directory = "dist/client" }
 
