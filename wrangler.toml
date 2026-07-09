@@ -6,7 +6,8 @@ assets = { binding = "ASSETS", directory = "dist/client" }
 # Required by @astrojs/cloudflare v14 (auto-enabled Sessions + Images)
 [[kv_namespaces]]
 binding = "SESSION"
-id = "00000000000000000000000000000000"
+id = "88b70a74cb7b40e3b9295f4fc3985624"
+
 
 [images]
 binding = "IMAGES"

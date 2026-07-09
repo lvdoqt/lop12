@@ -4,17 +4,21 @@ import { createClient } from '@supabase/supabase-js';
 const _SUPABASE_URL_DEFAULT = 'https://dwezesrukmwygqnmefbz.supabase.co';
 const _SUPABASE_ANON_KEY_DEFAULT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3ZXplc3J1a213eWdxbm1lZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMzA0NjIsImV4cCI6MjA5NTcwNjQ2Mn0.LCojdG6LGAQDHw9ewbXFiJOFIvrFYNPZLr4KRNmystw';
 
-// ── Env resolver (Node.js / Vite SSR) ────────────────────────────────────────
-// Reads from process.env first (Node SSR), then import.meta.env (Vite dev).
+// ── Env resolver (Cloudflare Workers / Node.js / Vite SSR) ──────────────────
+// Cloudflare Workers runtime is a V8 isolate — no process.env.
+// Variables are available via import.meta.env (injected by Vite at build time
+// for PUBLIC_ vars, and by CF runtime for secrets set via wrangler secret put).
 export function resolveEnv(key: string): string {
-  // 1. Node.js process.env (production SSR)
-  const proc = (globalThis as Record<string, unknown>)['process'] as { env?: Record<string, string | undefined> } | undefined;
-  if (proc?.env?.[key]) return proc.env[key]!;
-  // 2. Vite SSR dev — import.meta.env
+  // 1. import.meta.env — works on both Vite dev AND Cloudflare Workers
   try {
     const val = (import.meta as any).env?.[key];
-    if (val) return val;
+    if (val && val !== 'undefined') return val;
   } catch { /* not available */ }
+  // 2. process.env — fallback for local Node.js dev server only
+  try {
+    const proc = (globalThis as Record<string, unknown>)['process'] as { env?: Record<string, string | undefined> } | undefined;
+    if (proc?.env?.[key]) return proc.env[key]!;
+  } catch { /* not available in CF Workers */ }
   return '';
 }
 

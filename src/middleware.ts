@@ -1,5 +1,5 @@
 import { defineMiddleware } from 'astro:middleware';
-import { isMockModeForEnv, createServerSupabase } from './lib/supabase';
+import { createServerSupabase, createAdminSupabase } from './lib/supabase';
 import { db } from './services/db';
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -22,40 +22,74 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const accessToken = context.cookies.get('sb-access-token')?.value;
     const refreshToken = context.cookies.get('sb-refresh-token')?.value;
 
-    console.log('[middleware] accessToken present:', !!accessToken);
-
     if (accessToken) {
-      const supabaseServer = createServerSupabase();
+      // Use anon client to verify JWT (auth.getUser only needs anon key)
+      // Use ADMIN client to query public.users — bypasses RLS so role is read correctly
+      // (server-side requests have no auth.uid(), so RLS would block anon queries)
+      const supabaseAuth = createServerSupabase();
+      const supabaseAdmin = createAdminSupabase();
       try {
-        // Set session from cookies - this also handles token refresh automatically
-        const { data: { session }, error: sessionError } = await supabaseServer.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken || ''
-        });
+        // Verify the JWT directly with Supabase Auth
+        const { data: { user }, error: userError } = await supabaseAuth.auth.getUser(accessToken);
 
-        console.log('[middleware] setSession error:', sessionError?.message, '| user:', session?.user?.email);
-        
-        if (!sessionError && session?.user) {
-          const { data: profile, error: profileError } = await supabaseServer
+        if (!userError && user) {
+          // Token valid — fetch user profile with admin client (bypasses RLS)
+          const { data: profile, error: profileError } = await supabaseAdmin
             .from('users')
             .select('*')
-            .eq('id', session.user.id)
+            .eq('id', user.id)
             .single();
-
-          console.log('[middleware] profile error:', profileError?.message, '| profile:', profile?.email);
 
           if (profile && !profileError) {
             context.locals.user = profile;
           } else {
-            // Graceful fallback profile
+            // Fallback: read role from Supabase Auth user_metadata if DB query fails
+            const metaRole = user.user_metadata?.role;
+            const validRoles = ['admin', 'teacher', 'student'];
             context.locals.user = {
-              id: session.user.id,
-              email: session.user.email || '',
-              fullname: session.user.user_metadata?.fullname || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Học Sinh',
-              avatar_url: session.user.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/adventurer/svg?seed=default',
-              role: 'student',
+              id: user.id,
+              email: user.email || '',
+              fullname: user.user_metadata?.fullname || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Học Sinh',
+              avatar_url: user.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/adventurer/svg?seed=default',
+              role: validRoles.includes(metaRole) ? metaRole : 'student',
               created_at: new Date().toISOString(),
             };
+          }
+        } else if (userError && refreshToken) {
+          // Access token expired — try to refresh using refresh token
+          const { data: refreshData, error: refreshError } = await supabaseAuth.auth.refreshSession({
+            refresh_token: refreshToken,
+          });
+
+          if (!refreshError && refreshData.session && refreshData.user) {
+            // Fetch profile with admin client (bypasses RLS)
+            const { data: profile } = await supabaseAdmin
+              .from('users')
+              .select('*')
+              .eq('id', refreshData.user.id)
+              .single();
+
+            const metaRole = refreshData.user.user_metadata?.role;
+            const validRoles = ['admin', 'teacher', 'student'];
+            context.locals.user = profile || {
+              id: refreshData.user.id,
+              email: refreshData.user.email || '',
+              fullname: refreshData.user.user_metadata?.fullname || refreshData.user.email?.split('@')[0] || 'Học Sinh',
+              avatar_url: refreshData.user.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/adventurer/svg?seed=default',
+              role: validRoles.includes(metaRole) ? metaRole : 'student',
+              created_at: new Date().toISOString(),
+            };
+
+            // Rotate cookies with new tokens
+            const cookieOpts = {
+              path: '/',
+              httpOnly: true,
+              secure: true,
+              sameSite: 'lax' as const,
+              maxAge: 60 * 60 * 24 * 7,
+            };
+            context.cookies.set('sb-access-token', refreshData.session.access_token, cookieOpts);
+            context.cookies.set('sb-refresh-token', refreshData.session.refresh_token, cookieOpts);
           }
         }
       } catch (e) {
