@@ -1,7 +1,6 @@
 name = "lop12"
 compatibility_date = "2025-04-01"
 compatibility_flags = ["nodejs_compat"]
-main = "dist/server/entry.mjs"
 assets = { binding = "ASSETS", directory = "dist/client" }
 
 # Required by @astrojs/cloudflare v14 (auto-enabled Sessions + Images)
