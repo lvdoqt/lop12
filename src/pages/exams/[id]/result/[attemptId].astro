@@ -8,7 +8,7 @@ export const prerender = false;
 
 const { id, attemptId } = Astro.params;
 if (!id || !attemptId) {
-  return Astro.redirect('/dashboard');
+  return Astro.redirect('/lms/dashboard');
 }
 
 const user = Astro.locals.user;
@@ -17,16 +17,16 @@ const exam = await db.getExamBySlug(id);
 const attempt = await db.getAttemptById(attemptId);
 
 if (!exam || !attempt) {
-  return Astro.redirect('/de-thi');
+  return Astro.redirect('/lms/de-thi');
 }
 
 if (attempt.user_id && attempt.user_id !== user?.id) {
-  return Astro.redirect('/dashboard');
+  return Astro.redirect('/lms/dashboard');
 }
 
 const allQuestions = await db.getQuestionsByExamId(exam.id);
 
-const MCQ_TYPES = ['single_choice', 'multiple_choice', 'true_false'];
+const MCQ_TYPES = ['single_choice', 'multiple_choice', 'true_false', 'read', 'list'];
 
 const bySection = {
   mcq: allQuestions.filter(q => MCQ_TYPES.includes(q.type)),
@@ -61,50 +61,67 @@ const timeSpentStr = timeSpentMin > 0 ? `${timeSpentMin} phút ${timeSpentSec} g
 
 // 2. Calculate correct answers count
 let correctCount = 0;
+let totalQuestionsCount = 0;
 questions.forEach(q => {
-  const submitted = attempt.answers_submitted?.[q.id];
-  const correctAnswers = q.answers.filter(a => a.is_correct).map(a => a.id);
-  
-  if (!submitted) return;
-
-  if (q.type === 'single_choice' || q.type === 'true_false') {
-    const selectedId = typeof submitted === 'string' ? submitted : (submitted as string[])[0];
-    if (correctAnswers.includes(selectedId)) {
-      correctCount++;
-    }
-  } else if (q.type === 'multiple_choice') {
-    const selectedIds = Array.isArray(submitted) ? (submitted as string[]) : [submitted as string];
-    const allCorrectSelected = correctAnswers.every(id => selectedIds.includes(id));
-    const noIncorrectSelected = selectedIds.every(id => correctAnswers.includes(id));
-    if (allCorrectSelected && noIncorrectSelected && correctAnswers.length === selectedIds.length) {
-      correctCount++;
-    }
-  } else if (q.type === 'msq') {
-    if (typeof submitted === 'object' && submitted !== null) {
-      let allCorrect = true;
-      q.answers.forEach(a => {
-        const studentChoice = (submitted as any)[a.id];
-        const correctChoice = a.is_correct ? 'Đúng' : 'Sai';
-        if (studentChoice !== correctChoice) {
-          allCorrect = false;
+  if (q.type === 'read' || q.type === 'list') {
+    const subQs = q.metadata?.questions || [];
+    totalQuestionsCount += subQs.length;
+    const submitted = attempt.answers_submitted?.[q.id];
+    if (submitted && typeof submitted === 'object') {
+      subQs.forEach((subQ: any, subIdx: number) => {
+        const studentChoice = (submitted as any)[subIdx];
+        const correctChoice = subQ.correct_option || subQ.answer || '';
+        if (studentChoice && studentChoice.trim().toUpperCase() === correctChoice.trim().toUpperCase()) {
+          correctCount++;
         }
       });
-      if (allCorrect && q.answers.length > 0) {
+    }
+  } else {
+    totalQuestionsCount += 1;
+    const submitted = attempt.answers_submitted?.[q.id];
+    const correctAnswers = q.answers.filter(a => a.is_correct).map(a => a.id);
+    
+    if (!submitted) return;
+
+    if (q.type === 'single_choice' || q.type === 'true_false') {
+      const selectedId = typeof submitted === 'string' ? submitted : (submitted as string[])[0];
+      if (correctAnswers.includes(selectedId)) {
         correctCount++;
       }
-    }
-  } else if (q.type === 'sa') {
-    if (typeof submitted === 'string' && q.answer) {
-      const normSubmitted = submitted.trim().toLowerCase().replace(/\s+/g, ' ').replace(',', '.');
-      const normCorrect = q.answer.trim().toLowerCase().replace(/\s+/g, ' ').replace(',', '.');
-      
-      if (normSubmitted === normCorrect) {
+    } else if (q.type === 'multiple_choice') {
+      const selectedIds = Array.isArray(submitted) ? (submitted as string[]) : [submitted as string];
+      const allCorrectSelected = correctAnswers.every(id => selectedIds.includes(id));
+      const noIncorrectSelected = selectedIds.every(id => correctAnswers.includes(id));
+      if (allCorrectSelected && noIncorrectSelected && correctAnswers.length === selectedIds.length) {
         correctCount++;
-      } else {
-        const numSubmitted = Number(normSubmitted);
-        const numCorrect = Number(normCorrect);
-        if (!isNaN(numSubmitted) && !isNaN(numCorrect) && numSubmitted === numCorrect) {
+      }
+    } else if (q.type === 'msq') {
+      if (typeof submitted === 'object' && submitted !== null) {
+        let allCorrect = true;
+        q.answers.forEach(a => {
+          const studentChoice = (submitted as any)[a.id];
+          const correctChoice = a.is_correct ? 'Đúng' : 'Sai';
+          if (studentChoice !== correctChoice) {
+            allCorrect = false;
+          }
+        });
+        if (allCorrect && q.answers.length > 0) {
           correctCount++;
+        }
+      }
+    } else if (q.type === 'sa') {
+      if (typeof submitted === 'string' && q.answer) {
+        const normSubmitted = submitted.trim().toLowerCase().replace(/\s+/g, ' ').replace(',', '.');
+        const normCorrect = q.answer.trim().toLowerCase().replace(/\s+/g, ' ').replace(',', '.');
+        
+        if (normSubmitted === normCorrect) {
+          correctCount++;
+        } else {
+          const numSubmitted = Number(normSubmitted);
+          const numCorrect = Number(normCorrect);
+          if (!isNaN(numSubmitted) && !isNaN(numCorrect) && numSubmitted === numCorrect) {
+            correctCount++;
+          }
         }
       }
     }
@@ -178,7 +195,7 @@ if (score < 5.0) {
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
       <div class="bg-white border border-gray-250 dark:bg-slate-900 dark:border-slate-800/80 p-5 rounded-2xl shadow-sm text-center">
         <p class="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Số câu đúng</p>
-        <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-2 font-mono">{correctCount} / {questions.length} câu</p>
+        <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-2 font-mono">{correctCount} / {totalQuestionsCount} câu</p>
       </div>
       <div class="bg-white border border-gray-250 dark:bg-slate-900 dark:border-slate-800/80 p-5 rounded-2xl shadow-sm text-center">
         <p class="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Thời gian làm bài</p>
@@ -186,7 +203,7 @@ if (score < 5.0) {
       </div>
       <div class="bg-white border border-gray-250 dark:bg-slate-900 dark:border-slate-800/80 p-5 rounded-2xl shadow-sm text-center">
         <p class="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Độ chính xác</p>
-        <p class="text-xl font-bold text-blue-600 dark:text-blue-400 mt-2 font-mono">{Math.round((correctCount / questions.length) * 100)}%</p>
+        <p class="text-xl font-bold text-blue-600 dark:text-blue-400 mt-2 font-mono">{Math.round((correctCount / totalQuestionsCount) * 100)}%</p>
       </div>
     </div>
 
@@ -203,8 +220,8 @@ if (score < 5.0) {
             <h3 class="text-lg font-bold text-gray-800 dark:text-white border-b border-gray-200 dark:border-slate-700 pb-2">Phần I. Câu trắc nghiệm nhiều phương án lựa chọn</h3>
             {mcqQuestions.map(question => {
               const submittedRaw = attempt.answers_submitted?.[question.id];
-              const selectedAnswers = Array.isArray(submittedRaw) ? submittedRaw : (submittedRaw ? [submittedRaw] : []);
-              return <QuestionCard question={question} index={question.globalIndex} mode="review" selectedAnswers={selectedAnswers} />;
+              const selectedAnswers = Array.isArray(submittedRaw) ? submittedRaw : (submittedRaw && typeof submittedRaw === 'string' ? [submittedRaw] : []);
+              return <QuestionCard question={question} index={question.globalIndex} mode="review" selectedAnswers={selectedAnswers} submittedAnswer={submittedRaw} />;
             })}
           </div>
         )}
@@ -214,8 +231,8 @@ if (score < 5.0) {
             <h3 class="text-lg font-bold text-gray-800 dark:text-white border-b border-gray-200 dark:border-slate-700 pb-2">Phần II. Câu trắc nghiệm đúng sai</h3>
             {msqQuestions.map(question => {
               const submittedRaw = attempt.answers_submitted?.[question.id];
-              const selectedAnswers = Array.isArray(submittedRaw) ? submittedRaw : (submittedRaw ? [submittedRaw] : []);
-              return <QuestionCard question={question} index={question.globalIndex} mode="review" selectedAnswers={selectedAnswers} />;
+              const selectedAnswers = Array.isArray(submittedRaw) ? submittedRaw : (submittedRaw && typeof submittedRaw === 'string' ? [submittedRaw] : []);
+              return <QuestionCard question={question} index={question.globalIndex} mode="review" selectedAnswers={selectedAnswers} submittedAnswer={submittedRaw} />;
             })}
           </div>
         )}
@@ -225,8 +242,8 @@ if (score < 5.0) {
             <h3 class="text-lg font-bold text-gray-800 dark:text-white border-b border-gray-200 dark:border-slate-700 pb-2">Phần III. Câu trắc nghiệm trả lời ngắn</h3>
             {saQuestions.map(question => {
               const submittedRaw = attempt.answers_submitted?.[question.id];
-              const selectedAnswers = Array.isArray(submittedRaw) ? submittedRaw : (submittedRaw ? [submittedRaw] : []);
-              return <QuestionCard question={question} index={question.globalIndex} mode="review" selectedAnswers={selectedAnswers} />;
+              const selectedAnswers = Array.isArray(submittedRaw) ? submittedRaw : (submittedRaw && typeof submittedRaw === 'string' ? [submittedRaw] : []);
+              return <QuestionCard question={question} index={question.globalIndex} mode="review" selectedAnswers={selectedAnswers} submittedAnswer={submittedRaw} />;
             })}
           </div>
         )}
@@ -236,8 +253,8 @@ if (score < 5.0) {
             <h3 class="text-lg font-bold text-gray-800 dark:text-white border-b border-gray-200 dark:border-slate-700 pb-2">Phần IV. Câu tự luận</h3>
             {tlQuestions.map(question => {
               const submittedRaw = attempt.answers_submitted?.[question.id];
-              const selectedAnswers = Array.isArray(submittedRaw) ? submittedRaw : (submittedRaw ? [submittedRaw] : []);
-              return <QuestionCard question={question} index={question.globalIndex} mode="review" selectedAnswers={selectedAnswers} />;
+              const selectedAnswers = Array.isArray(submittedRaw) ? submittedRaw : (submittedRaw && typeof submittedRaw === 'string' ? [submittedRaw] : []);
+              return <QuestionCard question={question} index={question.globalIndex} mode="review" selectedAnswers={selectedAnswers} submittedAnswer={submittedRaw} />;
             })}
           </div>
         )}

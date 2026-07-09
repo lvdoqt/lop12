@@ -17,7 +17,7 @@ const entry = allLessonEntries.find(e => {
 });
 
 if (!entry) {
-  return Astro.redirect('/ly-thuyet');
+  return Astro.redirect('/lms/ly-thuyet');
 }
 
 const lessonData = entry.data.lessons?.[0] || {};
@@ -73,7 +73,7 @@ const getSlug = (id: string) => id.split('/').pop() || id;
         <div class="space-y-1 overflow-y-auto max-h-[calc(100vh-200px)] custom-scrollbar pr-2">
           {subjectLessons.map((l, index) => (
             <a 
-              href={`/${subjectParam}/${getSlug(l.id)}`}
+              href={`/lms/${subjectParam}/${getSlug(l.id)}`}
               class:list={['block px-3 py-2.5 rounded-xl text-sm font-medium transition-colors', l.id === entry.id ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-slate-200 border border-transparent']}
             >
               <div class="flex gap-3">

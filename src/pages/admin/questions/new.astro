@@ -1,4 +1,4 @@
-﻿---
+---
 import Layout from '../../../layouts/Layout.astro';
 import { db } from '../../../services/db';
 
@@ -6,7 +6,7 @@ export const prerender = false;
 
 const user = Astro.locals.user;
 if (!user || (user.role !== 'admin' && user.role !== 'teacher')) {
-  return Astro.redirect('/dashboard');
+  return Astro.redirect('/lms/dashboard');
 }
 
 let errMsg = '';
@@ -52,13 +52,34 @@ if (Astro.request.method === 'POST') {
           if (q.option_d) answers.push({ content: q.option_d, is_correct: correctStr.includes('D') });
         }
 
-        if (answers.length === 0 && type !== 'sa' && type !== 'tl') {
+        if (answers.length === 0 && type !== 'sa' && type !== 'tl' && type !== 'read' && type !== 'list') {
           throw new Error('Câu hỏi thiếu các phương án trả lời.');
         }
 
         let answer = q.answer;
         if ((type === 'sa' || type === 'tl') && !answer) {
           answer = q.correct_option;
+        }
+
+        const customMetadata: any = {};
+        if (type === 'read' || type === 'list') {
+          const qMetadata = q.metadata || {};
+          const subQs = qMetadata.questions || q.questions || [];
+          const audioUrl = qMetadata.audio_url || q.audio_url || q.audio || '';
+          
+          customMetadata.questions = subQs.map((sub: any) => ({
+            question: sub.question || sub.content || '',
+            option_a: sub.option_a || (sub.options && sub.options[0]) || '',
+            option_b: sub.option_b || (sub.options && sub.options[1]) || '',
+            option_c: sub.option_c || (sub.options && sub.options[2]) || '',
+            option_d: sub.option_d || (sub.options && sub.options[3]) || '',
+            correct_option: (sub.correct_option || sub.answer || '').trim().toUpperCase(),
+            explanation: sub.explanation || null
+          }));
+
+          if (audioUrl) {
+            customMetadata.audio_url = audioUrl;
+          }
         }
 
         await db.createQuestion({
@@ -68,11 +89,12 @@ if (Astro.request.method === 'POST') {
           difficulty: q.difficulty_level || q.difficulty || 'medium',
           type: type as any,
           answer: answer || null,
-          created_by: user.id
-        }, answers);
+          created_by: user.id,
+          metadata: customMetadata
+        } as any, answers);
         importCount++;
       }
-      return Astro.redirect('/admin/questions?imported=' + importCount);
+      return Astro.redirect('/lms/admin/questions?imported=' + importCount);
     } catch (err: any) {
       errMsg = err.message || 'Lỗi nhập JSON.';
     }
@@ -83,16 +105,74 @@ if (Astro.request.method === 'POST') {
       const content = formData.get('content') as string;
       const explanation = formData.get('explanation') as string;
       const difficulty = formData.get('difficulty') as 'easy' | 'medium' | 'hard';
-      const type = formData.get('type') as 'single_choice' | 'multiple_choice' | 'true_false' | 'msq' | 'sa';
+      const type = formData.get('type') as 'single_choice' | 'multiple_choice' | 'true_false' | 'msq' | 'sa' | 'tl' | 'read' | 'list';
 
       const answers: { content: string, is_correct: boolean }[] = [];
       const saCorrect = formData.get('sa_correct') as string;
+      const customMetadata: any = {};
 
       if (type === 'true_false') {
         const correctVal = formData.get('tf_correct') as string;
         answers.push({ content: 'Đúng', is_correct: correctVal === 'A' });
         answers.push({ content: 'Sai', is_correct: correctVal === 'B' });
-      } else if (type === 'sa') {
+      } else if (type === 'sa' || type === 'tl') {
+        // no answers array needed
+      } else if (type === 'read' || type === 'list') {
+        const subCount = parseInt(formData.get('sub_q_count') as string || '0');
+        const subQs = [];
+        for (let i = 0; i < subCount; i++) {
+          const qText = formData.get(`sub_q_${i}_text`) as string;
+          if (qText && qText.trim()) {
+            const optA = formData.get(`sub_q_${i}_opt_A`) as string;
+            const optB = formData.get(`sub_q_${i}_opt_B`) as string;
+            const optC = formData.get(`sub_q_${i}_opt_C`) as string;
+            const optD = formData.get(`sub_q_${i}_opt_D`) as string;
+            const correctVal = formData.get(`sub_q_${i}_correct`) as string;
+            const explanationVal = formData.get(`sub_q_${i}_explanation`) as string;
+
+            if (!optA || !optB || !optC || !optD || !correctVal) {
+              throw new Error(`Câu hỏi phụ số ${i+1} cần nhập đầy đủ 4 phương án và đáp án đúng.`);
+            }
+
+            subQs.push({
+              question: qText,
+              option_a: optA,
+              option_b: optB,
+              option_c: optC,
+              option_d: optD,
+              correct_option: correctVal,
+              explanation: explanationVal || null
+            });
+          }
+        }
+
+        if (subQs.length < 2 && type === 'list') {
+          throw new Error('Cần nhập ít nhất 2 câu hỏi phụ cho câu hỏi nghe hiểu.');
+        }
+        if (subQs.length < 3 && type === 'read') {
+          throw new Error('Cần nhập ít nhất 3 câu hỏi phụ cho câu hỏi đọc hiểu.');
+        }
+
+        const audioUrl = type === 'list' ? (formData.get('audio_url') as string) : undefined;
+        if (type === 'list' && !audioUrl?.trim()) {
+          throw new Error('Vui lòng điền link file audio cho câu hỏi nghe hiểu.');
+        }
+
+        customMetadata.questions = subQs;
+        if (audioUrl) {
+          customMetadata.audio_url = audioUrl;
+        }
+      } else if (type === 'msq') {
+        // MSQ: multiple sub-statements, each with Đúng/Sai
+        const stmtCount = parseInt(formData.get('msq_count') as string || '4');
+        for (let i = 0; i < stmtCount; i++) {
+          const stmtContent = formData.get(`msq_stmt_${i}`) as string;
+          const stmtCorrect = formData.get(`msq_correct_${i}`) as string;
+          if (stmtContent?.trim()) {
+            answers.push({ content: stmtContent, is_correct: stmtCorrect === 'true' });
+          }
+        }
+        if (answers.length === 0) throw new Error('Cần nhập ít nhất 1 mệnh đề cho câu hỏi Đúng/Sai THPT.');
       } else {
         const optA = formData.get('opt_A') as string;
         const isCorrectA = formData.has('correct_A');
@@ -114,12 +194,12 @@ if (Astro.request.method === 'POST') {
       }
 
       const correctCount = answers.filter(a => a.is_correct).length;
-      if (type !== 'sa' && type !== 'msq') {
+      if (type !== 'sa' && type !== 'tl' && type !== 'msq' && type !== 'read' && type !== 'list') {
         if (correctCount === 0) {
           throw new Error('Cậu hãy đánh dấu ít nhất 1 phương án là đáp án đúng.');
         }
         if (type === 'single_choice' && correctCount > 1) {
-          throw new Error('Câu hỏi Trắc nghiệm đơn chỉ được phép có duy nhất 1 đáp án đúng.');
+          throw new Error('Câu hỏi này chỉ được phép có duy nhất 1 đáp án đúng.');
         }
       } else if (type === 'sa') {
         if (!saCorrect?.trim()) {
@@ -138,10 +218,11 @@ if (Astro.request.method === 'POST') {
         difficulty,
         type,
         answer: type === 'sa' ? saCorrect : null,
-        created_by: user.id
-      }, answers);
+        created_by: user.id,
+        metadata: customMetadata
+      } as any, answers);
 
-      return Astro.redirect('/admin/questions');
+      return Astro.redirect('/lms/admin/questions');
 
     } catch (err: any) {
       errMsg = err.message || 'Lỗi thêm câu hỏi mới.';
@@ -156,7 +237,7 @@ const subjects = await db.getSubjects();
   <div class="max-w-3xl mx-auto space-y-6">
     <!-- Header -->
     <div>
-      <a href="/admin/questions" class="inline-flex items-center text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-slate-350 transition-colors uppercase tracking-wider mb-2">
+      <a href="/lms/admin/questions" class="inline-flex items-center text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-slate-350 transition-colors uppercase tracking-wider mb-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
@@ -176,69 +257,69 @@ const subjects = await db.getSubjects();
 
     <!-- Tab Navigation -->
     <div class="flex gap-2 border-b border-gray-200 dark:border-slate-800 pb-0">
-      <button
-        type="button"
-        id="tab-form"
-        onclick="switchTab('form')"
-        class="px-5 py-2.5 text-sm font-bold border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 transition-colors -mb-px"
-      >
+      <button type="button" id="tab-form"
+        class="px-5 py-2.5 text-sm font-bold border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 transition-colors -mb-px">
         📝 Thêm 1 câu hỏi
       </button>
-      <button
-        type="button"
-        id="tab-json"
-        onclick="switchTab('json')"
-        class="px-5 py-2.5 text-sm font-bold border-b-2 border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition-colors -mb-px"
-      >
+      <button type="button" id="tab-json"
+        class="px-5 py-2.5 text-sm font-bold border-b-2 border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition-colors -mb-px">
         📋 Nhập từ JSON
       </button>
     </div>
 
-    <!-- JSON Import Panel -->
-    <div id="json-panel" class="hidden">
-      <div class="bg-white dark:bg-slate-900 border border-gray-250 dark:border-slate-800/80 rounded-2xl p-6 md:p-8 shadow-sm">
-        <div class="mb-4">
+    <!-- ==================== JSON IMPORT PANEL ==================== -->
+    <div id="json-panel" style="display:none;">
+      <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800/80 rounded-2xl p-6 md:p-8 shadow-sm">
+        <div class="mb-5">
           <h2 class="text-base font-bold text-gray-900 dark:text-white mb-1">Nhập câu hỏi từ JSON</h2>
-          <p class="text-xs text-gray-500 dark:text-slate-400">Dán mảng JSON chứa danh sách câu hỏi. Mỗi object cần có: <code class="bg-gray-100 dark:bg-slate-800 px-1 rounded">subject_id</code>, <code class="bg-gray-100 dark:bg-slate-800 px-1 rounded">content</code>, <code class="bg-gray-100 dark:bg-slate-800 px-1 rounded">type</code>, <code class="bg-gray-100 dark:bg-slate-800 px-1 rounded">answers</code>.</p>
+          <p class="text-xs text-gray-500 dark:text-slate-400">Dán mảng JSON chứa danh sách câu hỏi. Mỗi object cần có:
+            <code class="bg-gray-100 dark:bg-slate-800 px-1 rounded">subject_id</code>,
+            <code class="bg-gray-100 dark:bg-slate-800 px-1 rounded">content</code>,
+            <code class="bg-gray-100 dark:bg-slate-800 px-1 rounded">type</code>,
+            <code class="bg-gray-100 dark:bg-slate-800 px-1 rounded">answers</code>.
+          </p>
         </div>
         <form method="POST" class="space-y-4">
           <input type="hidden" name="action" value="import_json" />
-          
+
           <div>
             <label for="subject_id_json" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Môn học mặc định</label>
-            <select
-              name="subject_id_json"
-              id="subject_id_json"
-              required
-              class="w-full px-4 py-3 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100"
-            >
+            <select name="subject_id_json" id="subject_id_json" required
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100">
               <option value="" disabled selected>-- Chọn môn học --</option>
               {subjects.map(s => (
                 <option value={s.id}>{s.name}</option>
               ))}
             </select>
           </div>
+
           <div>
             <label for="json_data" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Dữ liệu JSON</label>
             <textarea
               name="json_data"
               id="json_data"
               required
-              rows="12"
+              rows="14"
               placeholder={`[\n  {\n    "subject_id": "sub-1",\n    "content": "Câu hỏi 1",\n    "type": "single_choice",\n    "difficulty": "medium",\n    "explanation": "Lời giải...",\n    "answers": [\n      { "content": "A. Đáp án A", "is_correct": true },\n      { "content": "B. Đáp án B", "is_correct": false },\n      { "content": "C. Đáp án C", "is_correct": false },\n      { "content": "D. Đáp án D", "is_correct": false }\n    ]\n  }\n]`}
-              class="w-full px-4 py-3 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 dark:focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100 transition-colors font-mono"
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100 transition-colors font-mono"
             ></textarea>
           </div>
-          <div class="flex gap-3 text-xs pt-1">
-            <button type="button" id="btn-paste-sample" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-semibold transition">📋 Dán mẫu</button>
-            <button type="button" id="btn-validate-json" class="px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 font-semibold transition">✓ Kiểm tra JSON</button>
+
+          <div class="flex items-center gap-3 text-xs pt-1">
+            <button type="button" id="btn-paste-sample"
+              class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 font-semibold transition">
+              📋 Dán mẫu
+            </button>
+            <button type="button" id="btn-validate-json"
+              class="px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 font-semibold transition">
+              ✓ Kiểm tra JSON
+            </button>
+            <span id="json-feedback" class="hidden text-xs font-semibold"></span>
           </div>
-          <div id="json-feedback" class="hidden text-xs font-semibold"></div>
+
           <div class="flex justify-end pt-2">
-            <button
-              type="submit"
-              class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md shadow-blue-500/10 hover:shadow-xl transition"
-            >
+            <button type="submit"
+              class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md shadow-blue-500/10 hover:shadow-xl transition">
               Nhập câu hỏi từ JSON
             </button>
           </div>
@@ -246,300 +327,503 @@ const subjects = await db.getSubjects();
       </div>
     </div>
 
-    <!-- Form Card -->
+    <!-- ==================== FORM PANEL ==================== -->
     <div id="form-panel">
-      <div class="bg-white dark:bg-slate-900 border border-gray-250 dark:border-slate-800/80 rounded-2xl p-6 md:p-8 shadow-sm">
+      <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800/80 rounded-2xl p-6 md:p-8 shadow-sm">
         <form method="POST" class="space-y-6">
-        
-        <!-- Subject, Type, Difficulty Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <!-- Subject -->
-          <div>
-            <label for="subject_id" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Môn học</label>
-            <select
-              name="subject_id"
-              id="subject_id"
-              required
-              class="w-full px-4 py-3 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 dark:focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100"
-            >
-              <option value="" disabled selected>-- Chọn môn học --</option>
-              {subjects.map(s => (
-                <option value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
 
-          <!-- Type -->
-          <div>
-            <label for="type" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Dạng câu hỏi</label>
-            <select
-              name="type"
-              id="type"
-              required
-              class="w-full px-4 py-3 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 dark:focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100"
-            >
-              <option value="single_choice" selected>Trắc nghiệm đơn</option>
-              <option value="multiple_choice">Nhiều lựa chọn</option>
-              <option value="msq">Đúng / Sai (THPT 2025)</option>
-              <option value="sa">Trả lời ngắn</option>
-              <option value="true_false">Đúng / Sai (Đơn)</option>
-            </select>
-          </div>
-
-          <!-- Difficulty -->
-          <div>
-            <label for="difficulty" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Độ khó</label>
-            <select
-              name="difficulty"
-              id="difficulty"
-              required
-              class="w-full px-4 py-3 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 dark:focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100"
-            >
-              <option value="easy">Dễ</option>
-              <option value="medium" selected>Trung bình</option>
-              <option value="hard">Khó</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Question content -->
-        <div>
-          <label for="content" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Nội dung câu hỏi (Markdown + LaTeX)</label>
-          <textarea
-            name="content"
-            id="content"
-            required
-            rows="4"
-            placeholder="Ví dụ: Tính tích phân $I = \\int_0^1 x dx$."
-            class="w-full px-4 py-3 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 dark:focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100 transition-colors font-mono"
-          ></textarea>
-        </div>
-
-        <!-- Answers details -->
-        <div class="border-t border-gray-100 dark:border-slate-800/60 pt-6">
-          <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-4">Thiết lập các phương án trả lời</h3>
-          
-          <!-- Choices A, B, C, D (For Choice questions) -->
-          <div id="choices-container" class="space-y-4">
-            <!-- Option A -->
-            <div class="flex items-center space-x-3">
-              <span class="w-8 h-8 rounded-lg bg-gray-150 dark:bg-slate-800 text-gray-700 dark:text-slate-350 flex items-center justify-center font-bold text-sm">A</span>
-              <input
-                type="text"
-                name="opt_A"
-                placeholder="Nội dung phương án A..."
-                class="flex-1 px-4 py-2.5 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100"
-              />
-              <label class="flex items-center space-x-1.5 cursor-pointer select-none">
-                <input type="checkbox" name="correct_A" class="rounded text-blue-600 focus:ring-blue-500 h-4.5 w-4.5" />
-                <span class="text-xs font-bold text-gray-500 dark:text-slate-450 uppercase">Đúng</span>
-              </label>
-            </div>
-            
-            <!-- Option B -->
-            <div class="flex items-center space-x-3">
-              <span class="w-8 h-8 rounded-lg bg-gray-150 dark:bg-slate-800 text-gray-700 dark:text-slate-350 flex items-center justify-center font-bold text-sm">B</span>
-              <input
-                type="text"
-                name="opt_B"
-                placeholder="Nội dung phương án B..."
-                class="flex-1 px-4 py-2.5 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100"
-              />
-              <label class="flex items-center space-x-1.5 cursor-pointer select-none">
-                <input type="checkbox" name="correct_B" class="rounded text-blue-600 focus:ring-blue-500 h-4.5 w-4.5" />
-                <span class="text-xs font-bold text-gray-500 dark:text-slate-450 uppercase">Đúng</span>
-              </label>
-            </div>
-            
-            <!-- Option C -->
-            <div class="flex items-center space-x-3">
-              <span class="w-8 h-8 rounded-lg bg-gray-150 dark:bg-slate-800 text-gray-700 dark:text-slate-350 flex items-center justify-center font-bold text-sm">C</span>
-              <input
-                type="text"
-                name="opt_C"
-                placeholder="Nội dung phương án C..."
-                class="flex-1 px-4 py-2.5 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100"
-              />
-              <label class="flex items-center space-x-1.5 cursor-pointer select-none">
-                <input type="checkbox" name="correct_C" class="rounded text-blue-600 focus:ring-blue-500 h-4.5 w-4.5" />
-                <span class="text-xs font-bold text-gray-500 dark:text-slate-450 uppercase">Đúng</span>
-              </label>
-            </div>
-            
-            <!-- Option D -->
-            <div class="flex items-center space-x-3">
-              <span class="w-8 h-8 rounded-lg bg-gray-150 dark:bg-slate-800 text-gray-700 dark:text-slate-350 flex items-center justify-center font-bold text-sm">D</span>
-              <input
-                type="text"
-                name="opt_D"
-                placeholder="Nội dung phương án D..."
-                class="flex-1 px-4 py-2.5 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100"
-              />
-              <label class="flex items-center space-x-1.5 cursor-pointer select-none">
-                <input type="checkbox" name="correct_D" class="rounded text-blue-600 focus:ring-blue-500 h-4.5 w-4.5" />
-                <span class="text-xs font-bold text-gray-500 dark:text-slate-450 uppercase">Đúng</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- True/False Options (Hidden by default, shown when type === true_false) -->
-          <div id="tf-container" class="space-y-4 hidden">
-            <p class="text-xs text-gray-400 dark:text-slate-500">Đối với dạng câu hỏi Đúng/Sai, hệ thống sẽ tự động gán 2 phương án: <strong>A. Đúng</strong> và <strong>B. Sai</strong>.</p>
-            <div class="flex items-center space-x-4">
-              <span class="text-sm font-bold text-gray-700 dark:text-slate-350">Đáp án chính xác là:</span>
-              <label class="flex items-center space-x-1.5 cursor-pointer">
-                <input type="radio" name="tf_correct" value="A" checked class="h-4.5 w-4.5 text-blue-600 focus:ring-blue-500" />
-                <span class="text-sm font-semibold text-gray-700 dark:text-slate-300">A. Đúng</span>
-              </label>
-              <label class="flex items-center space-x-1.5 cursor-pointer">
-                <input type="radio" name="tf_correct" value="B" class="h-4.5 w-4.5 text-blue-600 focus:ring-blue-500" />
-                <span class="text-sm font-semibold text-gray-700 dark:text-slate-300">B. Sai</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Short Answer Options (Hidden by default, shown when type === sa) -->
-          <div id="sa-container" class="space-y-4 hidden">
-            <p class="text-xs text-gray-400 dark:text-slate-500">Đối với câu trả lời ngắn, hãy nhập trực tiếp đáp án chính xác bên dưới.</p>
+          <!-- Subject, Type, Difficulty Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <!-- Subject -->
             <div>
-              <label for="sa_correct" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Đáp án đúng</label>
-              <input
-                type="text"
-                name="sa_correct"
-                id="sa_correct"
-                placeholder="VD: 1.5 hoặc vô số..."
-                class="w-full px-4 py-2.5 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100"
-              />
+              <label for="subject_id" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Môn học</label>
+              <select name="subject_id" id="subject_id" required
+                class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100">
+                <option value="" disabled selected>-- Chọn môn học --</option>
+                {subjects.map(s => (
+                  <option value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <!-- Type -->
+            <div>
+              <label for="type" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Dạng câu hỏi</label>
+              <select name="type" id="type" required
+                class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100">
+                <option value="single_choice" selected>Trắc nghiệm đơn (1 đáp án)</option>
+                <option value="multiple_choice">Nhiều lựa chọn (≥2 đáp án)</option>
+                <option value="msq">Đúng / Sai (THPT 2025)</option>
+                <option value="true_false">Đúng / Sai (Đơn)</option>
+                <option value="read">Đọc hiểu (Reading)</option>
+                <option value="list">Nghe hiểu (Listening)</option>
+                <option value="sa">Trả lời ngắn</option>
+                <option value="tl">Tự luận</option>
+              </select>
+            </div>
+
+            <!-- Difficulty -->
+            <div>
+              <label for="difficulty" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Độ khó</label>
+              <select name="difficulty" id="difficulty" required
+                class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100">
+                <option value="easy">Dễ</option>
+                <option value="medium" selected>Trung bình</option>
+                <option value="hard">Khó</option>
+              </select>
             </div>
           </div>
-        </div>
 
-        <!-- Explanation solution -->
-        <div class="border-t border-gray-100 dark:border-slate-800/60 pt-6">
-          <label for="explanation" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Lời giải chi tiết (Markdown + LaTeX)</label>
-          <textarea
-            name="explanation"
-            id="explanation"
-            rows="4"
-            placeholder="Nhập lời giải để học sinh đối chiếu sau khi làm bài thi..."
-            class="w-full px-4 py-3 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 dark:focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100 transition-colors font-mono"
-          ></textarea>
-        </div>
+          <!-- Question content -->
+          <div>
+            <label for="content" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Nội dung câu hỏi (Markdown + LaTeX)</label>
+            <textarea name="content" id="content" required rows="4"
+              placeholder="Ví dụ: Tính tích phân $I = \int_0^1 x\,dx$."
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100 transition-colors font-mono"
+            ></textarea>
+          </div>
 
-        <!-- Submit buttons -->
-        <div class="flex justify-end space-x-3 pt-4 border-t border-gray-100 dark:border-slate-800/60">
-          <a
-            href="/admin/questions"
-            class="bg-white border border-gray-250 dark:bg-slate-950 dark:border-slate-855 hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-200 px-6 py-3 rounded-xl text-sm font-semibold transition"
-          >
-            Hủy
-          </a>
-          <button
-            type="submit"
-            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md shadow-blue-500/10 hover:shadow-xl transition"
-          >
-            Lưu câu hỏi
-          </button>
-        </div>
+          <!-- ===== ANSWERS SECTION ===== -->
+          <div class="border-t border-gray-100 dark:border-slate-800/60 pt-6 space-y-4">
+
+            <!-- TYPE LABEL -->
+            <div id="answers-header" class="flex items-center gap-2">
+              <h3 class="text-sm font-bold text-gray-900 dark:text-white">Phương án trả lời</h3>
+              <span id="type-badge" class="px-2 py-0.5 rounded text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">Trắc nghiệm đơn</span>
+            </div>
+
+            <!-- ---- Single / Multiple Choice (A B C D) ---- -->
+            <div id="choices-container" class="space-y-3">
+              <p id="choices-hint" class="text-xs text-gray-400 dark:text-slate-500">Đánh dấu <strong>1 ô</strong> cho đáp án đúng.</p>
+              {['A','B','C','D'].map(letter => (
+                <div class="flex items-center gap-3">
+                  <span class="flex-none w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 flex items-center justify-center font-bold text-sm">{letter}</span>
+                  <input type="text" name={`opt_${letter}`} id={`opt_${letter}`}
+                    placeholder={`Nội dung phương án ${letter}...`}
+                    class="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100" />
+                  <label class="flex items-center gap-1.5 cursor-pointer select-none flex-none">
+                    <input type="checkbox" name={`correct_${letter}`} id={`correct_${letter}`}
+                      class="rounded text-blue-600 focus:ring-blue-500 h-4 w-4" />
+                    <span class="text-xs font-bold text-gray-500 dark:text-slate-450 uppercase">Đúng</span>
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            <!-- ---- True / False (single, simple Đúng/Sai) ---- -->
+            <div id="tf-container" class="hidden space-y-3">
+              <p class="text-xs text-gray-400 dark:text-slate-500">Hệ thống tự gán 2 phương án <strong>A. Đúng</strong> và <strong>B. Sai</strong>. Chọn đáp án chính xác:</p>
+              <div class="flex items-center gap-6">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="tf_correct" value="A" checked class="h-4 w-4 text-blue-600 focus:ring-blue-500" />
+                  <span class="text-sm font-semibold text-gray-700 dark:text-slate-300 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">✓ Đúng</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="tf_correct" value="B" class="h-4 w-4 text-blue-600 focus:ring-blue-500" />
+                  <span class="text-sm font-semibold px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800">✗ Sai</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- ---- MSQ: Đúng/Sai THPT 2025 (multiple sub-statements) ---- -->
+            <div id="msq-container" class="hidden space-y-4">
+              <p class="text-xs text-gray-400 dark:text-slate-500">
+                Dạng <strong>câu hỏi Đúng/Sai THPT 2025</strong>: Mỗi mệnh đề có thể là Đúng hoặc Sai độc lập.
+              </p>
+              <input type="hidden" name="msq_count" id="msq_count" value="4" />
+              <div id="msq-stmts" class="space-y-3">
+                {[0,1,2,3].map(i => (
+                  <div class="flex items-start gap-3">
+                    <span class="flex-none mt-2.5 text-xs font-bold text-gray-500 dark:text-slate-400 w-5 text-right">{String.fromCharCode(97+i)})</span>
+                    <input type="text" name={`msq_stmt_${i}`} id={`msq_stmt_${i}`}
+                      placeholder={`Mệnh đề ${String.fromCharCode(65+i)}...`}
+                      class="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100" />
+                    <div class="flex-none flex items-center gap-2 mt-2">
+                      <label class="flex items-center gap-1 cursor-pointer">
+                        <input type="radio" name={`msq_correct_${i}`} value="true"
+                          class="h-3.5 w-3.5 text-emerald-600 focus:ring-emerald-500" />
+                        <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">Đ</span>
+                      </label>
+                      <label class="flex items-center gap-1 cursor-pointer">
+                        <input type="radio" name={`msq_correct_${i}`} value="false" checked
+                          class="h-3.5 w-3.5 text-rose-500 focus:ring-rose-500" />
+                        <span class="text-xs font-bold text-rose-500 dark:text-rose-400">S</span>
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button type="button" id="btn-add-msq-stmt"
+                class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                Thêm mệnh đề
+              </button>
+            </div>
+
+            <!-- ---- Short Answer / Essay ---- -->
+            <div id="sa-container" class="hidden space-y-3">
+              <p class="text-xs text-gray-400 dark:text-slate-500" id="sa-hint">Nhập đáp án chính xác bên dưới (học sinh phải khớp chính xác).</p>
+              <div>
+                <label for="sa_correct" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Đáp án đúng</label>
+                <input type="text" name="sa_correct" id="sa_correct"
+                  placeholder="VD: 1.5 hoặc vô số..."
+                  class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100" />
+              </div>
+            </div>
+
+
+
+            <!-- ---- Reading / Listening Comprehension (read/list) ---- -->
+            <div id="read-list-container" class="hidden space-y-6">
+              <div class="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 text-blue-700 dark:text-blue-400 text-xs font-semibold">
+                Nhập danh sách câu hỏi trắc nghiệm phụ liên quan đến bài đọc/nghe này.
+              </div>
+
+              <!-- Audio URL (visible only for list type) -->
+              <div id="audio-url-block" class="hidden">
+                <label for="audio_url" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Đường dẫn file Audio (.mp3)</label>
+                <input type="text" name="audio_url" id="audio_url"
+                  placeholder="Ví dụ: /audio/english12-listening.mp3"
+                  class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100" />
+              </div>
+
+              <!-- Sub Questions List -->
+              <input type="hidden" name="sub_q_count" id="sub_q_count" value="0" />
+              <div id="sub-questions-list" class="space-y-6">
+                <!-- Dynamically populated by JS -->
+              </div>
+
+              <button type="button" id="btn-add-sub-q"
+                class="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/45 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                Thêm câu hỏi phụ
+              </button>
+            </div>
+
+          </div><!-- /answers section -->
+
+          <!-- Explanation -->
+          <div class="border-t border-gray-100 dark:border-slate-800/60 pt-6">
+            <label for="explanation" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Lời giải chi tiết (Markdown + LaTeX) — tùy chọn</label>
+            <textarea name="explanation" id="explanation" rows="4"
+              placeholder="Nhập lời giải để học sinh đối chiếu sau khi làm bài thi..."
+              class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100 transition-colors font-mono"
+            ></textarea>
+          </div>
+
+          <!-- Submit -->
+          <div class="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800/60">
+            <a href="/lms/admin/questions"
+              class="bg-white border border-gray-200 dark:bg-slate-950 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-200 px-6 py-3 rounded-xl text-sm font-semibold transition">
+              Hủy
+            </a>
+            <button type="submit"
+              class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md shadow-blue-500/10 hover:shadow-xl transition">
+              Lưu câu hỏi
+            </button>
+          </div>
 
         </form>
       </div>
     </div>
+
   </div>
-</Layout>
+<script>
+  // @ts-nocheck
+  let subQCount = 0;
 
-<script lang="ts">
-  const typeSelect = document.getElementById('type') as HTMLSelectElement | null;
-  const choicesContainer = document.getElementById('choices-container');
-  const tfContainer = document.getElementById('tf-container');
-  const saContainer = document.getElementById('sa-container');
-
-  if (typeSelect && choicesContainer && tfContainer && saContainer) {
-    typeSelect.addEventListener('change', () => {
-      const val = typeSelect.value;
-
-      choicesContainer.classList.add('hidden');
-      tfContainer.classList.add('hidden');
-      saContainer.classList.add('hidden');
-
-      document.querySelectorAll('#choices-container input[type="text"]').forEach(input => {
-        input.removeAttribute('required');
-      });
-      document.getElementById('sa_correct')?.removeAttribute('required');
-
-      if (val === 'true_false') {
-        tfContainer.classList.remove('hidden');
-      } else if (val === 'sa') {
-        saContainer.classList.remove('hidden');
-        document.getElementById('sa_correct')?.setAttribute('required', 'true');
-      } else {
-        choicesContainer.classList.remove('hidden');
-        document.querySelectorAll('#choices-container input[type="text"]').forEach(input => {
-          input.setAttribute('required', 'true');
-        });
-      }
-    });
-  }
-
-  function switchTab(tab: string) {
+  function switchTab(tab) {
     const formPanel = document.getElementById('form-panel');
     const jsonPanel = document.getElementById('json-panel');
-    const tabForm = document.getElementById('tab-form');
-    const tabJson = document.getElementById('tab-json');
+    const tabForm   = document.getElementById('tab-form');
+    const tabJson   = document.getElementById('tab-json');
     if (!formPanel || !jsonPanel || !tabForm || !tabJson) return;
 
+    const ACTIVE   = ['border-blue-600','text-blue-600','dark:border-blue-400','dark:text-blue-400'];
+    const INACTIVE = ['border-transparent','text-gray-500','dark:text-slate-400'];
+
     if (tab === 'json') {
-      formPanel.classList.add('hidden');
-      jsonPanel.classList.remove('hidden');
-      tabForm.classList.remove('border-blue-600', 'text-blue-600', 'dark:border-blue-400', 'dark:text-blue-400');
-      tabForm.classList.add('border-transparent', 'text-gray-500', 'dark:text-slate-400');
-      tabJson.classList.remove('border-transparent', 'text-gray-500', 'dark:text-slate-400');
-      tabJson.classList.add('border-blue-600', 'text-blue-600', 'dark:border-blue-400', 'dark:text-blue-400');
+      formPanel.style.display = 'none';
+      jsonPanel.style.display = 'block';
+      tabForm.classList.remove(...ACTIVE);
+      tabForm.classList.add(...INACTIVE);
+      tabJson.classList.remove(...INACTIVE);
+      tabJson.classList.add(...ACTIVE);
     } else {
-      jsonPanel.classList.add('hidden');
-      formPanel.classList.remove('hidden');
-      tabJson.classList.remove('border-blue-600', 'text-blue-600', 'dark:border-blue-400', 'dark:text-blue-400');
-      tabJson.classList.add('border-transparent', 'text-gray-500', 'dark:text-slate-400');
-      tabForm.classList.remove('border-transparent', 'text-gray-500', 'dark:text-slate-400');
-      tabForm.classList.add('border-blue-600', 'text-blue-600', 'dark:border-blue-400', 'dark:text-blue-400');
+      jsonPanel.style.display = 'none';
+      formPanel.style.display = 'block';
+      tabJson.classList.remove(...ACTIVE);
+      tabJson.classList.add(...INACTIVE);
+      tabForm.classList.remove(...INACTIVE);
+      tabForm.classList.add(...ACTIVE);
     }
   }
-  (window as any).switchTab = switchTab;
 
-  // JSON validate
-  const jsonData = document.getElementById('json_data') as HTMLTextAreaElement | null;
-  const btnValidate = document.getElementById('btn-validate-json');
-  const jsonFeedback = document.getElementById('json-feedback');
+  const BADGE_LABELS = {
+    single_choice:   'Trắc nghiệm đơn',
+    multiple_choice: 'Nhiều lựa chọn',
+    msq:             'Đúng/Sai THPT 2025',
+    true_false:      'Đúng/Sai đơn',
+    read:            'Đọc hiểu',
+    list:            'Nghe hiểu',
+    sa:              'Trả lời ngắn',
+    tl:              'Tự luận',
+  };
 
-  if (btnValidate && jsonData && jsonFeedback) {
-    btnValidate.addEventListener('click', () => {
+  const BADGE_COLORS = {
+    single_choice:   'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+    multiple_choice: 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400',
+    msq:             'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
+    true_false:      'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
+    read:            'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
+    list:            'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400',
+    sa:              'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400',
+    tl:              'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
+  };
+
+  function addSubQuestion(data = null) {
+    const container = document.getElementById('sub-questions-list');
+    const countInput = document.getElementById('sub_q_count');
+    if (!container || !countInput) return;
+
+    const idx = subQCount++;
+    const div = document.createElement('div');
+    div.className = 'p-5 rounded-2xl border border-gray-200 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/30 space-y-4 relative group';
+    div.id = `sub-q-block-${idx}`;
+
+    const defaultQ = data || { question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_option: 'A', explanation: '' };
+
+    div.innerHTML = `
+      <div class="flex items-center justify-between border-b border-gray-200 dark:border-slate-800/80 pb-3">
+        <h4 class="text-sm font-black text-gray-800 dark:text-slate-200">Câu hỏi phụ #${idx + 1}</h4>
+        <button type="button" onclick="document.getElementById('sub-q-block-${idx}').remove();"
+          class="text-xs font-bold text-rose-500 hover:text-rose-600 transition flex items-center gap-0.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          Xóa
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1">Nội dung câu hỏi phụ</label>
+          <input type="text" name="sub_q_${idx}_text" value="${defaultQ.question}" required
+            placeholder="Ví dụ: What is the main idea of the passage?"
+            class="w-full px-4 py-2.5 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100" />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          ${['A','B','C','D'].map(L => {
+            const key = `option_${L.toLowerCase()}`;
+            return `
+              <div class="flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-white dark:bg-slate-800 border border-gray-250 dark:border-slate-800 flex items-center justify-center font-black text-xs text-gray-500 dark:text-slate-400">${L}</span>
+                <input type="text" name="sub_q_${idx}_opt_${L}" value="${defaultQ[key] || ''}" required
+                  placeholder="Phương án ${L}..."
+                  class="flex-1 px-3 py-2 rounded-lg border border-gray-250 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-xs focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100" />
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-bold text-gray-500 dark:text-slate-400">Đáp án đúng:</span>
+            <div class="flex items-center gap-4">
+              ${['A','B','C','D'].map(L => `
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                  <input type="radio" name="sub_q_${idx}_correct" value="${L}" ${defaultQ.correct_option === L ? 'checked' : ''}
+                    class="h-4 w-4 text-blue-600 focus:ring-blue-500" />
+                  <span class="text-xs font-bold text-gray-700 dark:text-slate-350">${L}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1">Giải thích (Tùy chọn)</label>
+          <input type="text" name="sub_q_${idx}_explanation" value="${defaultQ.explanation || ''}"
+            placeholder="Ví dụ: Lời giải thích tại sao chọn đáp án này..."
+            class="w-full px-4 py-2 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-xs focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100" />
+        </div>
+      </div>
+    `;
+    container.appendChild(div);
+    countInput.value = String(subQCount);
+  }
+
+  function updateAnswerForm(type) {
+    const choicesEl   = document.getElementById('choices-container');
+    const tfEl        = document.getElementById('tf-container');
+    const msqEl       = document.getElementById('msq-container');
+    const saEl        = document.getElementById('sa-container');
+    const tlEl        = document.getElementById('tl-container');
+    const readListEl  = document.getElementById('read-list-container');
+    const audioUrlBlock = document.getElementById('audio-url-block');
+    const badge       = document.getElementById('type-badge');
+    const choicesHint = document.getElementById('choices-hint');
+    const saHint      = document.getElementById('sa-hint');
+
+    [choicesEl, tfEl, msqEl, saEl, tlEl, readListEl].forEach(el => el?.classList.add('hidden'));
+
+    document.querySelectorAll('#choices-container input[type="text"]').forEach(i => i.required = false);
+    const saInput = document.getElementById('sa_correct');
+    if (saInput) saInput.required = false;
+    const audioInput = document.getElementById('audio_url');
+    if (audioInput) audioInput.required = false;
+
+    if (badge) {
+      badge.textContent = BADGE_LABELS[type] ?? type;
+      badge.className = 'px-2 py-0.5 rounded text-xs font-bold ' + (BADGE_COLORS[type] ?? '');
+    }
+
+    if (type === 'single_choice') {
+      choicesEl?.classList.remove('hidden');
+      if (choicesHint) choicesHint.innerHTML = 'Đánh dấu <strong>1 ô</strong> cho đáp án đúng.';
+      document.querySelectorAll('#choices-container input[type="text"]').forEach(i => i.required = true);
+    } else if (type === 'multiple_choice') {
+      choicesEl?.classList.remove('hidden');
+      if (choicesHint) choicesHint.innerHTML = 'Đánh dấu <strong>ít nhất 2 ô</strong> cho đáp án đúng.';
+      document.querySelectorAll('#choices-container input[type="text"]').forEach(i => i.required = true);
+    } else if (type === 'true_false') {
+      tfEl?.classList.remove('hidden');
+    } else if (type === 'msq') {
+      msqEl?.classList.remove('hidden');
+    } else if (type === 'sa') {
+      saEl?.classList.remove('hidden');
+      if (saHint) saHint.textContent = 'Nhập đáp án chính xác bên dưới (học sinh phải khớp chính xác).';
+      if (saInput) saInput.required = true;
+    } else if (type === 'tl') {
+      tlEl?.classList.remove('hidden');
+    } else if (type === 'read' || type === 'list') {
+      readListEl?.classList.remove('hidden');
+      const container = document.getElementById('sub-questions-list');
+      if (container && container.children.length === 0) {
+        const defaultCount = type === 'read' ? 3 : 2;
+        for (let k = 0; k < defaultCount; k++) {
+          addSubQuestion();
+        }
+      }
+      
+      if (type === 'list') {
+        audioUrlBlock?.classList.remove('hidden');
+        if (audioInput) audioInput.required = true;
+      } else {
+        audioUrlBlock?.classList.add('hidden');
+      }
+    }
+  }
+
+  function addMsqStatement() {
+    const container = document.getElementById('msq-stmts');
+    const countInput = document.getElementById('msq_count');
+    if (!container || !countInput) return;
+
+    const idx = container.children.length;
+    const letter = String.fromCharCode(97 + idx);
+    const Letter = String.fromCharCode(65 + idx);
+
+    const div = document.createElement('div');
+    div.className = 'flex items-start gap-3';
+    div.innerHTML = `
+      <span class="flex-none mt-2.5 text-xs font-bold text-gray-500 dark:text-slate-400 w-5 text-right">${letter})</span>
+      <input type="text" name="msq_stmt_${idx}" id="msq_stmt_${idx}"
+        placeholder="Mệnh đề ${Letter}..."
+        class="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100" />
+      <div class="flex-none flex items-center gap-2 mt-2">
+        <label class="flex items-center gap-1 cursor-pointer">
+          <input type="radio" name="msq_correct_${idx}" value="true" class="h-3.5 w-3.5 text-emerald-600 focus:ring-emerald-500" />
+          <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">Đ</span>
+        </label>
+        <label class="flex items-center gap-1 cursor-pointer">
+          <input type="radio" name="msq_correct_${idx}" value="false" checked class="h-3.5 w-3.5 text-rose-500 focus:ring-rose-500" />
+          <span class="text-xs font-bold text-rose-500 dark:text-rose-400">S</span>
+        </label>
+      </div>
+    `;
+    container.appendChild(div);
+    countInput.value = String(idx + 1);
+  }
+
+  function setupJsonPanel() {
+    const jsonData    = document.getElementById('json_data');
+    const btnValidate = document.getElementById('btn-validate-json');
+    const jsonFeedback= document.getElementById('json-feedback');
+    const btnSample   = document.getElementById('btn-paste-sample');
+
+    btnValidate?.addEventListener('click', () => {
+      if (!jsonData || !jsonFeedback) return;
       const raw = jsonData.value.trim();
-      if (!raw) { jsonFeedback.textContent = '⚠️ Vui lòng nhập JSON.'; jsonFeedback.className = 'text-xs font-semibold text-amber-600 dark:text-amber-400'; jsonFeedback.classList.remove('hidden'); return; }
+      if (!raw) {
+        jsonFeedback.textContent = '⚠️ Vui lòng nhập JSON.';
+        jsonFeedback.className = 'text-xs font-semibold text-amber-600 dark:text-amber-400';
+        jsonFeedback.classList.remove('hidden');
+        return;
+      }
       try {
         const parsed = JSON.parse(raw);
         const qs = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.questions) ? parsed.questions : [parsed]);
         if (!Array.isArray(qs) || qs.length === 0) throw new Error('Thiếu dữ liệu câu hỏi');
-        jsonFeedback.textContent = `✅ JSON hợp lệ (${qs.length} câu hỏi)`;
+        jsonFeedback.textContent = '✅ JSON hợp lệ — ' + qs.length + ' câu hỏi';
         jsonFeedback.className = 'text-xs font-semibold text-emerald-600 dark:text-emerald-400';
         jsonFeedback.classList.remove('hidden');
-      } catch (e: any) {
-        jsonFeedback.textContent = `❌ Lỗi: ${e.message}`;
+      } catch (e) {
+        jsonFeedback.textContent = '❌ Lỗi: ' + (e?.message || String(e));
         jsonFeedback.className = 'text-xs font-semibold text-rose-600 dark:text-rose-400';
         jsonFeedback.classList.remove('hidden');
       }
     });
-  }
 
-  // Paste sample
-  const btnSample = document.getElementById('btn-paste-sample');
-  if (btnSample && jsonData) {
-    btnSample.addEventListener('click', async () => {
-      try {
-        const res = await fetch('/sample-questions.json');
-        const text = await res.text();
-        jsonData.value = text;
-        jsonData.dispatchEvent(new Event('input'));
-      } catch { jsonData.value = '{"title":"Mẫu","questions":[{"type":"single_choice","content":"Câu hỏi mẫu","answers":[{"content":"A","is_correct":true},{"content":"B","is_correct":false},{"content":"C","is_correct":false},{"content":"D","is_correct":false}]}]}'; }
+    btnSample?.addEventListener('click', function() {
+      if (!jsonData) return;
+      const sample = JSON.stringify([
+        {
+          "subject_id": "",
+          "content": "Climate change is one of the most pressing issues of our time. Rising temperatures, caused primarily by the burning of fossil fuels, are leading to more extreme weather events, sea level rise, and disruption of ecosystems.",
+          "type": "read",
+          "difficulty": "medium",
+          "questions": [
+            {
+              "question": "According to the passage, what is the primary cause of rising temperatures?",
+              "option_a": "Deforestation and land use changes",
+              "option_b": "The burning of fossil fuels",
+              "option_c": "Ocean currents and natural cycles",
+              "option_d": "Industrial waste and pollution",
+              "correct_option": "B",
+              "explanation": "The passage explicitly states: 'Rising temperatures, caused primarily by the burning of fossil fuels...'"
+            },
+            {
+              "question": "What is NOT mentioned in the passage as a consequence of climate change?",
+              "option_a": "Extreme weather events",
+              "option_b": "Sea level rise",
+              "option_c": "Acid rain",
+              "option_d": "Disruption of ecosystems",
+              "correct_option": "C"
+            }
+          ]
+        }
+      ], null, 2);
+      jsonData.value = sample;
     });
   }
+
+  function init() {
+    document.getElementById('tab-form')?.addEventListener('click', function() { switchTab('form'); });
+    document.getElementById('tab-json')?.addEventListener('click', function() { switchTab('json'); });
+
+    const typeSelect = document.getElementById('type');
+    typeSelect?.addEventListener('change', function() {
+      updateAnswerForm(typeSelect.value);
+    });
+    updateAnswerForm('single_choice');
+
+    document.getElementById('btn-add-msq-stmt')?.addEventListener('click', addMsqStatement);
+    document.getElementById('btn-add-sub-q')?.addEventListener('click', function() { addSubQuestion(); });
+    setupJsonPanel();
+  }
+
+  init();
+  document.addEventListener('astro:page-load', init);
 </script>
+
+</Layout>

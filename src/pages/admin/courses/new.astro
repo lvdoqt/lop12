@@ -6,7 +6,7 @@ export const prerender = false;
 
 const user = Astro.locals.user;
 if (!user || (user.role !== 'admin' && user.role !== 'teacher')) {
-  return Astro.redirect('/dashboard');
+  return Astro.redirect('/lms/dashboard');
 }
 
 const subjects = await db.getSubjects();
@@ -44,7 +44,7 @@ if (Astro.request.method === 'POST') {
         is_published,
         created_by: user.id,
       });
-      return Astro.redirect(`/admin/courses/${course.id}`);
+      return Astro.redirect(`/lms/admin/courses/${course.id}`);
     } catch (e: any) {
       error = e.message || 'Có lỗi xảy ra, vui lòng thử lại.';
     }
@@ -56,7 +56,7 @@ if (Astro.request.method === 'POST') {
   <div class="max-w-2xl mx-auto space-y-6">
     <!-- Header -->
     <div>
-      <a href="/admin/courses" class="inline-flex items-center text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-slate-350 transition-colors uppercase tracking-wider mb-2">
+      <a href="/lms/admin/courses" class="inline-flex items-center text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-slate-350 transition-colors uppercase tracking-wider mb-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
@@ -133,7 +133,7 @@ if (Astro.request.method === 'POST') {
         <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl text-sm transition shadow shadow-blue-500/20">
           Tạo khóa học
         </button>
-        <a href="/admin/courses" class="px-5 py-2.5 rounded-xl border border-gray-250 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm font-semibold transition">
+        <a href="/lms/admin/courses" class="px-5 py-2.5 rounded-xl border border-gray-250 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm font-semibold transition">
           Hủy
         </a>
       </div>

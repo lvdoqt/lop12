@@ -24,62 +24,79 @@ export const POST: APIRoute = async ({ request }) => {
     }
 
     let correctCount = 0;
-    const totalCount = examQuestions.length;
+    let totalCount = 0;
 
     // 3. Grade each question
     examQuestions.forEach(q => {
-      const submitted = answers[q.id]; // Can be string, string[], or Record/string for msq/sa
-      const correctAnswers = q.answers.filter(a => a.is_correct).map(a => a.id);
-      
-      if (!submitted) {
-        return; // Left blank
-      }
-
-      if (q.type === 'single_choice' || q.type === 'true_false') {
-        // Submitted is a string representing the answer ID
-        const selectedId = typeof submitted === 'string' ? submitted : submitted[0];
-        if (correctAnswers.includes(selectedId)) {
-          correctCount++;
-        }
-      } else if (q.type === 'multiple_choice') {
-        // Submitted should be an array of answer IDs
-        const selectedIds = Array.isArray(submitted) ? submitted : [submitted];
+      if (q.type === 'read' || q.type === 'list') {
+        const subQs = q.metadata?.questions || [];
+        totalCount += subQs.length;
         
-        // Check if selected matches correct answers exactly (all correct selected and no incorrect selected)
-        const allCorrectSelected = correctAnswers.every(id => selectedIds.includes(id));
-        const noIncorrectSelected = selectedIds.every(id => correctAnswers.includes(id));
-        
-        if (allCorrectSelected && noIncorrectSelected && correctAnswers.length === selectedIds.length) {
-          correctCount++;
-        }
-      } else if (q.type === 'msq') {
-        // Submitted is an object mapping option ID -> "Đúng" or "Sai"
-        if (typeof submitted === 'object' && submitted !== null) {
-          let allCorrect = true;
-          q.answers.forEach(a => {
-            const studentChoice = (submitted as any)[a.id];
-            const correctChoice = a.is_correct ? 'Đúng' : 'Sai';
-            if (studentChoice !== correctChoice) {
-              allCorrect = false;
+        const submitted = answers[q.id];
+        if (submitted && typeof submitted === 'object') {
+          subQs.forEach((subQ: any, subIdx: number) => {
+            const studentChoice = (submitted as any)[subIdx];
+            const correctChoice = subQ.correct_option || subQ.answer || '';
+            if (studentChoice && studentChoice.trim().toUpperCase() === correctChoice.trim().toUpperCase()) {
+              correctCount++;
             }
           });
-          if (allCorrect && q.answers.length > 0) {
+        }
+      } else {
+        totalCount += 1;
+        const submitted = answers[q.id];
+        const correctAnswers = q.answers.filter(a => a.is_correct).map(a => a.id);
+        
+        if (!submitted) {
+          return; // Left blank
+        }
+
+        if (q.type === 'single_choice' || q.type === 'true_false') {
+          // Submitted is a string representing the answer ID
+          const selectedId = typeof submitted === 'string' ? submitted : submitted[0];
+          if (correctAnswers.includes(selectedId)) {
             correctCount++;
           }
-        }
-      } else if (q.type === 'sa') {
-        // Submitted is a string answer
-        if (typeof submitted === 'string' && q.answer) {
-          const normSubmitted = submitted.trim().toLowerCase().replace(/\s+/g, ' ').replace(',', '.');
-          const normCorrect = q.answer.trim().toLowerCase().replace(/\s+/g, ' ').replace(',', '.');
+        } else if (q.type === 'multiple_choice') {
+          // Submitted should be an array of answer IDs
+          const selectedIds = Array.isArray(submitted) ? submitted : [submitted];
           
-          if (normSubmitted === normCorrect) {
+          // Check if selected matches correct answers exactly (all correct selected and no incorrect selected)
+          const allCorrectSelected = correctAnswers.every(id => selectedIds.includes(id));
+          const noIncorrectSelected = selectedIds.every(id => correctAnswers.includes(id));
+          
+          if (allCorrectSelected && noIncorrectSelected && correctAnswers.length === selectedIds.length) {
             correctCount++;
-          } else {
-            const numSubmitted = Number(normSubmitted);
-            const numCorrect = Number(normCorrect);
-            if (!isNaN(numSubmitted) && !isNaN(numCorrect) && numSubmitted === numCorrect) {
+          }
+        } else if (q.type === 'msq') {
+          // Submitted is an object mapping option ID -> "Đúng" or "Sai"
+          if (typeof submitted === 'object' && submitted !== null) {
+            let allCorrect = true;
+            q.answers.forEach(a => {
+              const studentChoice = (submitted as any)[a.id];
+              const correctChoice = a.is_correct ? 'Đúng' : 'Sai';
+              if (studentChoice !== correctChoice) {
+                allCorrect = false;
+              }
+            });
+            if (allCorrect && q.answers.length > 0) {
               correctCount++;
+            }
+          }
+        } else if (q.type === 'sa') {
+          // Submitted is a string answer
+          if (typeof submitted === 'string' && q.answer) {
+            const normSubmitted = submitted.trim().toLowerCase().replace(/\s+/g, ' ').replace(',', '.');
+            const normCorrect = q.answer.trim().toLowerCase().replace(/\s+/g, ' ').replace(',', '.');
+            
+            if (normSubmitted === normCorrect) {
+              correctCount++;
+            } else {
+              const numSubmitted = Number(normSubmitted);
+              const numCorrect = Number(normCorrect);
+              if (!isNaN(numSubmitted) && !isNaN(numCorrect) && numSubmitted === numCorrect) {
+                correctCount++;
+              }
             }
           }
         }

@@ -12,7 +12,7 @@ const { user } = Astro.props;
   <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
     <!-- Column 1: Intro + Auth / Theme Buttons -->
     <div class="md:col-span-2 space-y-4">
-      <a href="/" class="flex items-center space-x-2">
+      <a href="/lms/" class="flex items-center space-x-2">
         <div
           class="w-8 h-8 rounded-lg bg-vermillion-500 flex items-center justify-center font-bold text-white shadow-lg shadow-vermillion-500/20"
         >
@@ -36,13 +36,13 @@ const { user } = Astro.props;
         !user && (
           <div class="flex flex-wrap items-center gap-3 pt-2">
             <a
-              href="/login"
+              href="/lms/login"
               class="text-sm font-semibold text-ink dark:text-[#E8E0D0] border border-scholar dark:border-[#3A3A5C] px-5 py-2 rounded-lg hover:bg-vermillion-50 dark:hover:bg-vermillion-900/20 hover:border-vermillion-200 dark:hover:border-vermillion-900/30 hover:text-vermillion-600 dark:hover:text-vermillion-400 transition-all duration-200"
             >
               Đăng nhập
             </a>
             <a
-              href="/register"
+              href="/lms/register"
               class="text-sm font-semibold bg-vermillion-500 hover:bg-vermillion-600 text-white px-5 py-2 rounded-lg shadow-md shadow-vermillion-500/15 hover:shadow-vermillion-500/25 transition-all duration-200"
             >
               Đăng ký
@@ -64,21 +64,21 @@ const { user } = Astro.props;
       >
         <li>
           <a
-            href="/ly-thuyet"
+            href="/lms/ly-thuyet"
             class="hover:text-vermillion-500 dark:hover:text-vermillion-400 transition-colors"
             >Lý thuyết</a
           >
         </li>
         <li>
           <a
-            href="/de-thi"
+            href="/lms/de-thi"
             class="hover:text-vermillion-500 dark:hover:text-vermillion-400 transition-colors"
             >Đề thi</a
           >
         </li>
         <li>
           <a
-            href="/rss.xml"
+            href="/lms/rss.xml"
             target="_blank"
             rel="noopener"
             class="hover:text-orange-500 dark:hover:text-orange-400 transition-colors flex items-center gap-1.5"

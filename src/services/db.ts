@@ -1,28 +1,21 @@
-import { isMockMode, isMockModeForEnv, supabase, createAdminSupabase, createServerSupabase } from '../lib/supabase';
+import { isMockModeForEnv, supabase, createAdminSupabase, createServerSupabase } from '../lib/supabase';
 import type { Subject, Lesson, Question, Answer, Exam, Attempt, User, Blog, Comment, Course, CourseLesson, CourseEnrollment, LessonProgress } from '../types';
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Cloudflare runtime env injection Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-// Middleware calls setRuntimeEnv() per-request with Cloudflare runtime.env.
-// All db functions use _runtimeEnv() to create Supabase clients correctly on CF Pages.
-let _cachedRuntimeEnv: Record<string, string | undefined> | undefined;
+// ── Supabase client helpers ──────────────────────────────────────────────────
 
-export function setRuntimeEnv(env: Record<string, string | undefined> | undefined) {
-  _cachedRuntimeEnv = env;
-}
-
-/** True if running in mock mode considering both static env and CF runtime env */
+/** True if running in mock mode */
 function isInMockMode(): boolean {
-  return isMockModeForEnv(_cachedRuntimeEnv);
+  return isMockModeForEnv();
 }
 
-/** Get admin Supabase client, aware of CF runtime env */
+/** Get admin Supabase client */
 function adminClient() {
-  return createAdminSupabase(_cachedRuntimeEnv);
+  return createAdminSupabase();
 }
 
-/** Get anon Supabase client, aware of CF runtime env */
+/** Get anon Supabase client */
 function anonClient() {
-  return createServerSupabase(_cachedRuntimeEnv) || supabase;
+  return createServerSupabase() || supabase;
 }
 
 
@@ -575,7 +568,8 @@ export const db = {
       explanation: question.explanation,
       subject_id: question.subject_id,
       grade: '12',
-      ...(question.created_by ? { created_by: question.created_by } : {})
+      ...(question.created_by ? { created_by: question.created_by } : {}),
+      ...(question.metadata || {})
     };
 
     // Default de_id to 'bank' for templates
@@ -657,7 +651,8 @@ export const db = {
       ...(question.difficulty ? { difficulty: question.difficulty } : {}),
       ...(question.type ? { type: question.type } : {}),
       ...(question.explanation !== undefined ? { explanation: question.explanation } : {}),
-      ...(question.subject_id ? { subject_id: question.subject_id } : {})
+      ...(question.subject_id ? { subject_id: question.subject_id } : {}),
+      ...(question.metadata || {})
     };
 
     const currentType = question.type || existingMetadata.type;

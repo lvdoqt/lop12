@@ -3,13 +3,13 @@ const user = Astro.locals.user;
 const pathname = new URL(Astro.request.url).pathname;
 
 const menuItems = [
-  { href: '/dashboard', label: 'Bảng điều khiển', icon: 'dashboard' },
+  { href: '/lms/dashboard', label: 'Bảng điều khiển', icon: 'dashboard' },
   ...(user && (user.role === 'admin' || user.role === 'teacher') 
-    ? [{ href: '/admin', label: 'Bảng điều hành', icon: 'admin' }] 
+    ? [{ href: '/lms/admin', label: 'Bảng điều hành', icon: 'admin' }] 
     : []),
-  { href: '/khoa-hoc', label: 'Khóa học', icon: 'course' },
-  { href: '/ly-thuyet', label: 'Lý thuyết', icon: 'book' },
-  { href: '/profile', label: 'Hồ sơ cá nhân', icon: 'user' },
+  { href: '/lms/khoa-hoc', label: 'Khóa học', icon: 'course' },
+  { href: '/lms/ly-thuyet', label: 'Lý thuyết', icon: 'book' },
+  { href: '/lms/profile', label: 'Hồ sơ cá nhân', icon: 'user' },
 ];
 ---
 
@@ -20,7 +20,7 @@ const menuItems = [
 <aside id="main-sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 text-slate-200 flex flex-col transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
   <!-- Brand logo -->
   <div class="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-950/50">
-    <a href="/dashboard" class="flex items-center space-x-2">
+    <a href="/lms/dashboard" class="flex items-center space-x-2">
       <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/30">L</div>
       <span class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-blue-200 to-blue-400 bg-clip-text text-transparent">LỚP 12 LMS</span>
     </a>
@@ -118,7 +118,7 @@ const menuItems = [
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
       try {
-        const response = await fetch('/api/auth/session', {
+        const response = await fetch('/lms/api/auth/session', {
           method: 'DELETE'
         });
         if (response.ok) {
@@ -128,7 +128,7 @@ const menuItems = [
             // @ts-ignore
             await window.supabase.auth.signOut();
           }
-          window.location.href = '/login';
+          window.location.href = '/lms/login';
         }
       } catch (err) {
         console.error('Error logging out:', err);

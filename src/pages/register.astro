@@ -107,7 +107,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
 
       <!-- Header -->
       <div class="text-center space-y-3">
-        <a href="/" class="inline-flex items-center gap-3 mb-1 group">
+        <a href="/lms/" class="inline-flex items-center gap-3 mb-1 group">
           <div class="logo-icon w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-white text-lg tracking-tight">L</div>
           <span class="text-xl font-bold text-slate-800 dark:text-white tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">LỚP 12 LMS</span>
         </a>
@@ -115,7 +115,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
           <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Tạo tài khoản mới ✨</h1>
           <p class="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
             Đã có tài khoản?
-            <a href="/login" class="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 ml-1 transition-colors">Đăng nhập →</a>
+            <a href="/lms/login" class="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 ml-1 transition-colors">Đăng nhập →</a>
           </p>
         </div>
       </div>
@@ -235,7 +235,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
       <!-- Terms note -->
       <p class="text-center text-xs text-slate-400 dark:text-slate-500 pt-1">
         Bằng cách đăng ký, bạn đồng ý với
-        <a href="/privacy" class="underline underline-offset-2 hover:text-indigo-500 transition-colors">Chính sách bảo mật</a>
+        <a href="/lms/privacy" class="underline underline-offset-2 hover:text-indigo-500 transition-colors">Chính sách bảo mật</a>
         của chúng tôi.
       </p>
 
@@ -412,7 +412,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
         }
 
         if (data?.session) {
-          const sessionRes = await fetch('/api/auth/session', {
+          const sessionRes = await fetch('/lms/api/auth/session', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               access_token: data.session.access_token,
@@ -421,7 +421,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
           });
           if (sessionRes.ok) {
             showInfo('✅ Đăng ký thành công! Đang chuyển hướng...');
-            setTimeout(() => window.location.href = '/dashboard', 800);
+            setTimeout(() => window.location.href = '/lms/dashboard', 800);
           } else {
             showError('Lỗi thiết lập phiên đăng nhập.'); setLoading(false);
           }
@@ -431,7 +431,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
           const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
           
           if (!signInError && signInData?.session) {
-            const sessionRes = await fetch('/api/auth/session', {
+            const sessionRes = await fetch('/lms/api/auth/session', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 access_token: signInData.session.access_token,
@@ -440,7 +440,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
             });
             if (sessionRes.ok) {
               showInfo('✅ Đăng ký thành công! Đang chuyển hướng...');
-              setTimeout(() => window.location.href = '/dashboard', 800);
+              setTimeout(() => window.location.href = '/lms/dashboard', 800);
             } else {
               showError('Lỗi thiết lập phiên đăng nhập.'); setLoading(false);
             }

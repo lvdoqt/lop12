@@ -1,42 +1,10 @@
 import { defineMiddleware } from 'astro:middleware';
 import { isMockModeForEnv, createServerSupabase } from './lib/supabase';
-import { db, setRuntimeEnv } from './services/db';
-
-// Helper: get runtime env from Cloudflare Workers (production) or process.env (local dev)
-async function getRuntimeEnv(): Promise<Record<string, string | undefined> | undefined> {
-  try {
-    // Hide module name from Vite's static analysis so it doesn't try to resolve during dev
-    const cfModule = 'cloudflare' + ':' + 'workers';
-    // @ts-ignore — cloudflare:workers only exists in CF runtime
-    const { env } = await import(/* @vite-ignore */ cfModule);
-    return env;
-  } catch {
-    // Local Node dev — fall back to process.env
-    return process.env as Record<string, string | undefined>;
-  }
-}
-
+import { db } from './services/db';
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const url = new URL(context.url);
   const path = url.pathname;
-
-  // Extract runtime env (Cloudflare Workers in prod, process.env in local dev)
-  let runtimeEnv: Record<string, string | undefined> | undefined = undefined;
-  try {
-    runtimeEnv = await getRuntimeEnv();
-  } catch (e) {
-    console.warn('Could not read runtime env:', e);
-  }
-
-  // Store runtimeEnv in locals so pages/db service can use it
-  context.locals.runtimeEnv = runtimeEnv;
-
-  // Inject runtime env into db service (must be called before any db.* calls)
-  setRuntimeEnv(runtimeEnv);
-
-  // Determine mock mode using runtime env (correct on Cloudflare Pages)
-  const mockMode = isMockModeForEnv(runtimeEnv);
 
   // Initialize locals
   context.locals.user = null;
@@ -50,14 +18,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   if (!context.locals.user) {
-    // In production, verify session cookies with Supabase
+    // Verify session cookies with Supabase
     const accessToken = context.cookies.get('sb-access-token')?.value;
     const refreshToken = context.cookies.get('sb-refresh-token')?.value;
 
     console.log('[middleware] accessToken present:', !!accessToken);
 
     if (accessToken) {
-      const supabaseServer = createServerSupabase(runtimeEnv);
+      const supabaseServer = createServerSupabase();
       try {
         // Set session from cookies - this also handles token refresh automatically
         const { data: { session }, error: sessionError } = await supabaseServer.auth.setSession({
@@ -104,33 +72,26 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // ============================================================
 
   // Auth pages (redirect to dashboard if already logged in)
-  const isAuthPage = path === '/login' || path === '/register' || path === '/forgot-password' || path === '/reset-password';
+  const isAuthPage = path === '/lms/login' || path === '/lms/register' || path === '/lms/forgot-password' || path === '/lms/reset-password';
 
-  // PUBLIC pages - no login needed:
-  //   /ly-thuyet, /ly-thuyet/[slug] — Subject list & detail
-  //   /[subject]/[slug]          — Lesson content
-  //   /exams/[id]                — Exam info page (shows title, time, question count, lock icon if has password)
-  //   /, /about, /contact, /guide, /privacy, /sitemap
+  // PUBLIC pages - no login needed
   const isPublicContent =
-    path.startsWith('/ly-thuyet') ||
-    /^\/[a-z0-9-]+-12\/[a-z0-9-]+$/.test(path) || // e.g., /toan-12/bai-1
-    path === '/';
+    path.startsWith('/lms/ly-thuyet') ||
+    /^\/lms\/[a-z0-9-]+-12\/[a-z0-9-]+$/.test(path) || // e.g., /lms/toan-12/bai-1
+    path === '/lms' ||
+    path === '/lms/';
 
-  // Exam info page is public (e.g. /exams/exam-1 but NOT /exams/exam-1/take or /exams/exam-1/result/...)
-  // Check: starts with /exams/ and only has ONE segment after it (no further slashes)
-  const examPathSegments = path.split('/').filter(s => s.length > 0); // ['exams', 'exam-1'] or ['exams','exam-1','take']
+  // Exam info page is public (e.g. /lms/exams/exam-1 but NOT /lms/exams/exam-1/take or /lms/exams/exam-1/result/...)
+  const examPathSegments = path.replace(/^\/lms/, '').split('/').filter(s => s.length > 0); // ['exams', 'exam-1'] or ['exams','exam-1','take']
   const isExamInfoPage = examPathSegments.length === 2 && examPathSegments[0] === 'exams';
 
-  // LOGIN-REQUIRED pages:
-  //   /exams/[id]/take           — Taking an exam (need account to save score)
-  //   /exams/[id]/result/[id]    — View exam results
-  //   /dashboard, /profile, /ai-chat
+  // LOGIN-REQUIRED pages
   const isProtectedRoute =
-    path.startsWith('/dashboard') ||
-    path.startsWith('/profile');
+    path.startsWith('/lms/dashboard') ||
+    path.startsWith('/lms/profile');
 
-  const isAdminRoute = path.startsWith('/admin');
-  const isApiRoute = path.startsWith('/api');
+  const isAdminRoute = path.startsWith('/lms/admin');
+  const isApiRoute = path.startsWith('/lms/api');
 
   // ============================================================
   // REDIRECTIONS
@@ -138,16 +99,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (user) {
     // Logged-in user trying to access login/register → send to dashboard
     if (isAuthPage) {
-      return context.redirect('/dashboard');
+      return context.redirect('/lms/dashboard');
     }
     // Admin-only route check
     if (isAdminRoute && user.role !== 'admin' && user.role !== 'teacher') {
-      return context.redirect('/dashboard');
+      return context.redirect('/lms/dashboard');
     }
   } else {
     // Guest user trying to access protected route → send to login
     if (isProtectedRoute || isAdminRoute) {
-      return context.redirect('/login');
+      return context.redirect('/lms/login');
     }
   }
 
@@ -186,13 +147,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
 
     // ── Public static-ish pages ─────────────────────────────────────────────
+    const strippedPath = path.replace(/^\/lms/, '') || '/';
 
     // Trang chủ: 1h browser, 2h CDN, stale 24h
-    if (path === '/') {
+    if (strippedPath === '/' || strippedPath === '') {
       response.headers.set('Cache-Control', 'public, max-age=3600, s-maxage=7200, stale-while-revalidate=86400');
     }
     // Môn học & Bài học: 1h browser, 24h CDN
-    else if (path.startsWith('/ly-thuyet/') || /^\/[a-z0-9-]+-12\/[a-z0-9-]+$/.test(path)) {
+    else if (strippedPath.startsWith('/ly-thuyet/') || /^\/[a-z0-9-]+-12\/[a-z0-9-]+$/.test(strippedPath)) {
       response.headers.set('Cache-Control', 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400');
     }
     // Trang đề thi info (public): 30m browser, 1h CDN
@@ -200,11 +162,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
       response.headers.set('Cache-Control', 'public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400');
     }
     // Trang tĩnh: about, guide, privacy, contact, sitemap — 24h browser, 7 ngày CDN
-    else if (['/about', '/guide', '/privacy', '/contact', '/sitemap'].includes(path)) {
+    else if (['/about', '/guide', '/privacy', '/contact', '/sitemap'].includes(strippedPath)) {
       response.headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000');
     }
-    // Sitemap.xml & robots.txt được serve từ public/ nên handled bởi static server
-    // Mặc định không set cache cho các path khác
   }
 
   return response;

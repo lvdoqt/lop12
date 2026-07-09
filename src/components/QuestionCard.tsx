@@ -125,13 +125,23 @@ export default function QuestionCard({ question, index, selectedAnswer, onAnswer
 
   const getInitialSelection = () => {
     if (!selectedAnswer) return null;
-    if (question.type === 'msq') return selectedAnswer as Record<string, string>;
+    if (question.type === 'msq' || question.type === 'read' || question.type === 'list') {
+      return selectedAnswer as Record<string, string>;
+    }
     if (question.type === 'multiple_choice') return selectedAnswer as string[];
     if (question.type === 'sa' || question.type === 'tl') return selectedAnswer as string;
     return selectedAnswer as string;
   };
 
   const [selection, setSelection] = useState<any>(getInitialSelection());
+
+  const handleSubAnswer = useCallback((subIdx: number, letter: string) => {
+    setSelection((prev: any) => {
+      const next = { ...(prev || {}), [subIdx]: letter };
+      onAnswer(question.id, next);
+      return next;
+    });
+  }, [question.id, onAnswer]);
 
   const handleSingleChoice = useCallback((answerId: string) => {
     setSelection(answerId);
@@ -413,6 +423,99 @@ export default function QuestionCard({ question, index, selectedAnswer, onAnswer
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* English Reading / Listening Comprehension (read/list) */}
+      {(question.type === 'read' || question.type === 'list') && (
+        <div className="space-y-6">
+          {/* Audio player for listening section */}
+          {question.type === 'list' && question.metadata?.audio_url && (
+            <div className="my-4 p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row items-center gap-3">
+              <span className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5 shrink-0 select-none">
+                <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+                Phát Audio nghe:
+              </span>
+              <audio className="w-full h-10 outline-none rounded-xl" controls src={question.metadata.audio_url}></audio>
+            </div>
+          )}
+
+          {/* Sub questions array */}
+          <div className="space-y-6">
+            {(question.metadata?.questions || []).map((subQ: any, subIdx: number) => {
+              const subSelected = (selection as Record<string, string> || {})[subIdx];
+              const subOptions = [
+                { letter: 'A', text: subQ.option_a || subQ.options?.[0] },
+                { letter: 'B', text: subQ.option_b || subQ.options?.[1] },
+                { letter: 'C', text: subQ.option_c || subQ.options?.[2] },
+                { letter: 'D', text: subQ.option_d || subQ.options?.[3] }
+              ];
+              const correctChoice = subQ.correct_option || subQ.answer || '';
+
+              return (
+                <div key={subIdx} className="p-5 rounded-2xl border border-gray-150 dark:border-slate-800/80 bg-gray-50/30 dark:bg-slate-900/10 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+                      Câu {index}.{subIdx + 1}
+                    </span>
+                  </div>
+                  <div className="text-sm md:text-base font-bold text-gray-800 dark:text-slate-100">
+                    {subQ.question || subQ.content}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {subOptions.map((opt) => {
+                      const letter = opt.letter;
+                      const selected = subSelected === letter;
+                      const correct = correctChoice === letter;
+
+                      let optStyle = 'border-gray-200 dark:border-slate-800 hover:bg-gray-100 dark:hover:bg-slate-800/40 text-gray-700 dark:text-slate-350 cursor-pointer';
+                      let letterStyle = 'bg-gray-150 border-gray-300 text-gray-500 dark:bg-slate-800 dark:border-slate-750 dark:text-slate-400';
+
+                      if (mode === 'take') {
+                        if (selected) {
+                          optStyle = 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 cursor-pointer ring-2 ring-blue-400/30';
+                          letterStyle = 'bg-blue-600 border-transparent text-white';
+                        }
+                      } else {
+                        if (correct) {
+                          optStyle = 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400';
+                          letterStyle = 'bg-emerald-600 border-transparent text-white';
+                        } else if (selected && !correct) {
+                          optStyle = 'border-rose-500 bg-rose-50/60 dark:bg-rose-950/20 text-rose-700 dark:text-rose-400';
+                          letterStyle = 'bg-rose-600 border-transparent text-white';
+                        }
+                      }
+
+                      return (
+                        <div
+                          key={letter}
+                          onClick={() => {
+                            if (mode === 'take') handleSubAnswer(subIdx, letter);
+                          }}
+                          className={`flex items-center p-3.5 rounded-xl border-2 transition-all select-none ${optStyle}`}
+                        >
+                          <div className={`w-6 h-6 rounded-lg mr-3 flex items-center justify-center font-bold text-xs transition-colors border shrink-0 ${letterStyle}`}>
+                            {letter}
+                          </div>
+                          <div className="text-xs md:text-sm font-semibold flex-1">
+                            {opt.text}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {mode === 'review' && subQ.explanation && (
+                    <div className="mt-3 p-3 rounded-xl bg-blue-50/30 dark:bg-slate-900/60 text-xs text-gray-600 dark:text-slate-350 border border-blue-100/20 leading-relaxed">
+                      <span className="font-extrabold text-blue-600 dark:text-blue-400 block mb-0.5">Lời giải câu {index}.{subIdx + 1}:</span>
+                      {subQ.explanation}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

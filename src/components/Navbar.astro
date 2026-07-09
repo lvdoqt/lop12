@@ -24,7 +24,7 @@ const user = Astro.locals.user;
     )}
 
     <!-- Logo -->
-    <a href="/" class="flex items-center space-x-2">
+    <a href="/lms/" class="flex items-center space-x-2">
       <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center font-bold text-white shadow-sm">L</div>
       <span class="text-lg font-bold tracking-tight font-serif text-white">LỚP 12 LMS</span>
     </a>
@@ -32,13 +32,13 @@ const user = Astro.locals.user;
 
   <!-- Desktop Navigation -->
     <nav class="hidden md:flex items-center space-x-8">
-      <a href="/khoa-hoc" class="text-sm font-medium text-white/75 hover:text-white transition-colors relative after:absolute after:bottom-[-18px] after:left-0 after:right-0 after:h-0.5 after:bg-white after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-200">
+      <a href="/lms/khoa-hoc" class="text-sm font-medium text-white/75 hover:text-white transition-colors relative after:absolute after:bottom-[-18px] after:left-0 after:right-0 after:h-0.5 after:bg-white after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-200">
         Khóa học
       </a>
-      <a href="/ly-thuyet" class="text-sm font-medium text-white/75 hover:text-white transition-colors relative after:absolute after:bottom-[-18px] after:left-0 after:right-0 after:h-0.5 after:bg-white after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-200">
+      <a href="/lms/ly-thuyet" class="text-sm font-medium text-white/75 hover:text-white transition-colors relative after:absolute after:bottom-[-18px] after:left-0 after:right-0 after:h-0.5 after:bg-white after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-200">
         Lý thuyết
       </a>
-      <a href="/de-thi" class="text-sm font-medium text-white/75 hover:text-white transition-colors relative after:absolute after:bottom-[-18px] after:left-0 after:right-0 after:h-0.5 after:bg-white after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-200">
+      <a href="/lms/de-thi" class="text-sm font-medium text-white/75 hover:text-white transition-colors relative after:absolute after:bottom-[-18px] after:left-0 after:right-0 after:h-0.5 after:bg-white after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-200">
         Đề thi
       </a>
     </nav>
@@ -82,11 +82,11 @@ const user = Astro.locals.user;
           id="user-dropdown-menu"
           class="absolute right-0 mt-2 w-48 rounded-xl bg-white dark:bg-slate-900 border border-scholar dark:border-slate-800 py-2 shadow-xl shadow-blue-500/10 hidden"
         >
-          <a href="/profile" class="block px-4 py-2 text-sm text-ink hover:bg-blue-50 dark:text-slate-200 dark:hover:bg-slate-800">
+          <a href="/lms/profile" class="block px-4 py-2 text-sm text-ink hover:bg-blue-50 dark:text-slate-200 dark:hover:bg-slate-800">
             Hồ sơ cá nhân
           </a>
           {user.role === 'admin' || user.role === 'teacher' ? (
-            <a href="/admin" class="block px-4 py-2 text-sm text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-slate-800">
+            <a href="/lms/admin" class="block px-4 py-2 text-sm text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-slate-800">
               Trang quản trị
             </a>
           ) : null}
@@ -109,22 +109,22 @@ const user = Astro.locals.user;
   class="md:hidden fixed top-16 right-0 left-0 z-20 bg-blue-600 dark:bg-blue-800 border-t border-white/10 shadow-xl shadow-blue-900/30 hidden"
 >
     <div class="flex flex-col px-4 py-4 space-y-3">
-      <a href="/ly-thuyet" class="text-sm font-medium text-white/75 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-white/10">
+      <a href="/lms/ly-thuyet" class="text-sm font-medium text-white/75 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-white/10">
         Lý thuyết
       </a>
-      <a href="/de-thi" class="text-sm font-medium text-white/75 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-white/10">
+      <a href="/lms/de-thi" class="text-sm font-medium text-white/75 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-white/10">
         Đề thi
       </a>
     {!user && (
       <div class="border-t border-white/10 pt-3 mt-1 flex flex-col space-y-3">
         <a
-          href="/login"
+          href="/lms/login"
           class="text-sm font-semibold text-white/90 border border-white/20 px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-200 text-center"
         >
           Đăng nhập
         </a>
         <a
-          href="/register"
+          href="/lms/register"
           class="text-sm font-semibold bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-all duration-200 text-center"
         >
           Đăng ký
@@ -180,7 +180,7 @@ const user = Astro.locals.user;
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
       try {
-        const response = await fetch('/api/auth/session', {
+        const response = await fetch('/lms/api/auth/session', {
           method: 'DELETE'
         });
         if (response.ok) {
@@ -189,7 +189,7 @@ const user = Astro.locals.user;
             // @ts-ignore
             await window.supabase.auth.signOut();
           }
-          window.location.href = '/login';
+          window.location.href = '/lms/login';
         }
       } catch (err) {
         console.error('Error logging out:', err);

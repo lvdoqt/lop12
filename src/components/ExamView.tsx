@@ -18,7 +18,7 @@ interface ExamViewProps {
 
 type AnswersMap = Record<string, string | string[] | Record<string, string>>;
 
-const MCQ_TYPES = ['single_choice', 'multiple_choice', 'true_false'];
+const MCQ_TYPES = ['single_choice', 'multiple_choice', 'true_false', 'read', 'list'];
 
 const SECTION_COLORS = {
   mcq: {
@@ -106,14 +106,14 @@ export default function ExamView({ exam, attempt, questions, initialSeconds }: E
     }
 
     try {
-      const res = await fetch('/api/attempts', {
+      const res = await fetch('/lms/api/attempts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ attemptId: attempt.id, answers }),
       });
 
       if (res.ok) {
-        window.location.href = `/exams/${exam.slug}/result/${attempt.id}`;
+        window.location.href = `/lms/exams/${exam.slug}/result/${attempt.id}`;
       } else {
         const data = await res.json().catch(() => null);
         setError(data?.message || 'Có lỗi xảy ra khi nộp bài. Vui lòng thử lại.');
@@ -175,7 +175,7 @@ export default function ExamView({ exam, attempt, questions, initialSeconds }: E
             Đề thi này hiện chưa được thêm câu hỏi. Vui lòng quay lại sau hoặc liên hệ giáo viên.
           </p>
           <a
-            href="/de-thi"
+            href="/lms/de-thi"
             className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors"
           >
             Quay lại danh sách đề thi

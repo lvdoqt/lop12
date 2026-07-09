@@ -6,12 +6,12 @@ export const prerender = false;
 
 const { id } = Astro.params;
 if (!id) {
-  return Astro.redirect('/admin/questions');
+  return Astro.redirect('/lms/admin/questions');
 }
 
 const user = Astro.locals.user;
 if (!user || (user.role !== 'admin' && user.role !== 'teacher')) {
-  return Astro.redirect('/dashboard');
+  return Astro.redirect('/lms/dashboard');
 }
 
 // Find question by ID
@@ -19,7 +19,7 @@ const questions = await db.getQuestions(undefined, user.role === 'admin' ? undef
 const question = questions.find(q => q.id === id);
 
 if (!question) {
-  return Astro.redirect('/admin/questions');
+  return Astro.redirect('/lms/admin/questions');
 }
 
 let errMsg = '';
@@ -31,18 +31,73 @@ if (Astro.request.method === 'POST') {
     const content = formData.get('content') as string;
     const explanation = formData.get('explanation') as string;
     const difficulty = formData.get('difficulty') as 'easy' | 'medium' | 'hard';
-    const type = formData.get('type') as 'single_choice' | 'multiple_choice' | 'true_false' | 'msq' | 'sa';
+    const type = formData.get('type') as 'single_choice' | 'multiple_choice' | 'true_false' | 'msq' | 'sa' | 'tl' | 'read' | 'list';
 
-    // Parse options
     const answers: { content: string, is_correct: boolean }[] = [];
     const saCorrect = formData.get('sa_correct') as string;
+    const customMetadata: any = {};
     
     if (type === 'true_false') {
       const correctVal = formData.get('tf_correct') as string; // 'A' or 'B'
       answers.push({ content: 'Đúng', is_correct: correctVal === 'A' });
       answers.push({ content: 'Sai', is_correct: correctVal === 'B' });
-    } else if (type === 'sa') {
-      // No answers array
+    } else if (type === 'sa' || type === 'tl') {
+      // No answers array for these types
+    } else if (type === 'read' || type === 'list') {
+      const subCount = parseInt(formData.get('sub_q_count') as string || '0');
+      const subQs = [];
+      for (let i = 0; i < subCount; i++) {
+        const qText = formData.get(`sub_q_${i}_text`) as string;
+        if (qText && qText.trim()) {
+          const optA = formData.get(`sub_q_${i}_opt_A`) as string;
+          const optB = formData.get(`sub_q_${i}_opt_B`) as string;
+          const optC = formData.get(`sub_q_${i}_opt_C`) as string;
+          const optD = formData.get(`sub_q_${i}_opt_D`) as string;
+          const correctVal = formData.get(`sub_q_${i}_correct`) as string;
+          const explanationVal = formData.get(`sub_q_${i}_explanation`) as string;
+
+          if (!optA || !optB || !optC || !optD || !correctVal) {
+            throw new Error(`Câu hỏi phụ số ${i+1} cần nhập đầy đủ 4 phương án và đáp án đúng.`);
+          }
+
+          subQs.push({
+            question: qText,
+            option_a: optA,
+            option_b: optB,
+            option_c: optC,
+            option_d: optD,
+            correct_option: correctVal,
+            explanation: explanationVal || null
+          });
+        }
+      }
+
+      if (subQs.length < 2 && type === 'list') {
+        throw new Error('Cần nhập ít nhất 2 câu hỏi phụ cho câu hỏi nghe hiểu.');
+      }
+      if (subQs.length < 3 && type === 'read') {
+        throw new Error('Cần nhập ít nhất 3 câu hỏi phụ cho câu hỏi đọc hiểu.');
+      }
+
+      const audioUrl = type === 'list' ? (formData.get('audio_url') as string) : undefined;
+      if (type === 'list' && !audioUrl?.trim()) {
+        throw new Error('Vui lòng điền link file audio cho câu hỏi nghe hiểu.');
+      }
+
+      customMetadata.questions = subQs;
+      if (audioUrl) {
+        customMetadata.audio_url = audioUrl;
+      }
+    } else if (type === 'msq') {
+      const stmtCount = parseInt(formData.get('msq_count') as string || '4');
+      for (let i = 0; i < stmtCount; i++) {
+        const stmtContent = formData.get(`msq_stmt_${i}`) as string;
+        const stmtCorrect = formData.get(`msq_correct_${i}`) as string;
+        if (stmtContent?.trim()) {
+          answers.push({ content: stmtContent, is_correct: stmtCorrect === 'true' });
+        }
+      }
+      if (answers.length === 0) throw new Error('Cần nhập ít nhất 1 mệnh đề cho câu hỏi Đúng/Sai THPT.');
     } else {
       const optA = formData.get('opt_A') as string;
       const isCorrectA = formData.has('correct_A');
@@ -65,12 +120,12 @@ if (Astro.request.method === 'POST') {
 
     // Validation
     const correctCount = answers.filter(a => a.is_correct).length;
-    if (type !== 'sa' && type !== 'msq') {
+    if (type !== 'sa' && type !== 'tl' && type !== 'msq' && type !== 'read' && type !== 'list') {
       if (correctCount === 0) {
         throw new Error('Cậu hãy đánh dấu ít nhất 1 phương án là đáp án đúng.');
       }
       if (type === 'single_choice' && correctCount > 1) {
-        throw new Error('Câu hỏi Trắc nghiệm đơn chỉ được phép có duy nhất 1 đáp án đúng.');
+        throw new Error('Câu hỏi này chỉ được phép có duy nhất 1 đáp án đúng.');
       }
     } else if (type === 'sa') {
       if (!saCorrect?.trim()) {
@@ -88,10 +143,11 @@ if (Astro.request.method === 'POST') {
       explanation: explanation || null,
       difficulty,
       type,
-      answer: type === 'sa' ? saCorrect : null
-    }, answers);
+      answer: type === 'sa' ? saCorrect : null,
+      metadata: customMetadata
+    } as any, answers);
 
-    return Astro.redirect('/admin/questions');
+    return Astro.redirect('/lms/admin/questions');
 
   } catch (err: any) {
     errMsg = err.message || 'Lỗi cập nhật câu hỏi.';
@@ -117,7 +173,7 @@ const isTFCorrectA = question.type === 'true_false' && question.answers[0]?.is_c
   <div class="max-w-3xl mx-auto space-y-6">
     <!-- Header -->
     <div>
-      <a href="/admin/questions" class="inline-flex items-center text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-slate-350 transition-colors uppercase tracking-wider mb-2">
+      <a href="/lms/admin/questions" class="inline-flex items-center text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-slate-350 transition-colors uppercase tracking-wider mb-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
@@ -168,8 +224,11 @@ const isTFCorrectA = question.type === 'true_false' && question.answers[0]?.is_c
               <option value="single_choice" selected={question.type === 'single_choice'}>Trắc nghiệm đơn</option>
               <option value="multiple_choice" selected={question.type === 'multiple_choice'}>Nhiều lựa chọn</option>
               <option value="msq" selected={question.type === 'msq'}>Đúng / Sai (THPT 2025)</option>
-              <option value="sa" selected={question.type === 'sa'}>Trả lời ngắn</option>
               <option value="true_false" selected={question.type === 'true_false'}>Đúng / Sai (Đơn)</option>
+              <option value="read" selected={question.type === 'read'}>Đọc hiểu (Reading)</option>
+              <option value="list" selected={question.type === 'list'}>Nghe hiểu (Listening)</option>
+              <option value="sa" selected={question.type === 'sa'}>Trả lời ngắn</option>
+              <option value="tl" selected={question.type === 'tl'}>Tự luận</option>
             </select>
           </div>
 
@@ -206,7 +265,7 @@ const isTFCorrectA = question.type === 'true_false' && question.answers[0]?.is_c
           <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-4">Thiết lập các phương án trả lời</h3>
           
           <!-- Choices A, B, C, D -->
-          <div id="choices-container" class={`space-y-4 ${question.type === 'true_false' || question.type === 'sa' ? 'hidden' : ''}`}>
+          <div id="choices-container" class={`space-y-4 ${['true_false', 'sa', 'tl', 'msq'].includes(question.type) ? 'hidden' : ''}`}>
             <!-- Option A -->
             <div class="flex items-center space-x-3">
               <span class="w-8 h-8 rounded-lg bg-gray-150 dark:bg-slate-800 text-gray-700 dark:text-slate-350 flex items-center justify-center font-bold text-sm">A</span>
@@ -304,6 +363,57 @@ const isTFCorrectA = question.type === 'true_false' && question.answers[0]?.is_c
               />
             </div>
           </div>
+
+          <!-- Tự luận notice -->
+          <div id="tl-container" class={`${question.type === 'tl' ? '' : 'hidden'}`}>
+            <div class="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 text-amber-700 dark:text-amber-400 text-xs font-semibold flex items-start gap-2">
+              <svg class="w-4 h-4 flex-none mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              Câu hỏi tự luận — không có đáp án trắc nghiệm. Học sinh sẽ tự nhập nội dung tự luận của mình.
+            </div>
+          </div>
+
+          <!-- MSQ notice -->
+          <div id="msq-container" class={`${question.type === 'msq' ? '' : 'hidden'}`}>
+            <div class="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 text-amber-700 dark:text-amber-400 text-xs font-semibold">
+              Dạng Đúng/Sai THPT 2025 — chỉnh sửa các mệnh đề trong trang quản lý ngân hàng câu hỏi.
+            </div>
+          </div>
+
+          <!-- ---- Reading / Listening Comprehension (read/list) ---- -->
+          <div id="read-list-container" class={`space-y-6 ${['read', 'list'].includes(question.type) ? '' : 'hidden'}`}>
+            <div class="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 text-blue-700 dark:text-blue-400 text-xs font-semibold">
+              Nhập danh sách câu hỏi trắc nghiệm phụ liên quan đến bài đọc/nghe này.
+            </div>
+
+            <!-- Audio URL (visible only for list type) -->
+            <div id="audio-url-block" class={question.type === 'list' ? '' : 'hidden'}>
+              <label for="audio_url" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Đường dẫn file Audio (.mp3)</label>
+              <input type="text" name="audio_url" id="audio_url"
+                value={question.metadata?.audio_url || ''}
+                placeholder="Ví dụ: /audio/english12-listening.mp3"
+                class="w-full px-4 py-3 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100" />
+            </div>
+
+            <!-- Sub Questions List -->
+            <input type="hidden" name="sub_q_count" id="sub_q_count" value="0" />
+            <div id="sub-questions-list" class="space-y-6">
+              <!-- Dynamically populated by JS -->
+            </div>
+
+            <button type="button" id="btn-add-sub-q"
+              class="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/45 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+              Thêm câu hỏi phụ
+            </button>
+          </div>
+
+          <!-- Hidden root to pass data from SSR to script -->
+          <div id="questions-data-root"
+            data-sub-questions={JSON.stringify(question.metadata?.questions || [])}
+            data-audio-url={question.metadata?.audio_url || ''}
+            data-type={question.type}
+            class="hidden"
+          ></div>
         </div>
 
         <!-- Explanation solution -->
@@ -321,7 +431,7 @@ const isTFCorrectA = question.type === 'true_false' && question.answers[0]?.is_c
         <!-- Submit buttons -->
         <div class="flex justify-end space-x-3 pt-4 border-t border-gray-100 dark:border-slate-800/60">
           <a
-            href="/admin/questions"
+            href="/lms/admin/questions"
             class="bg-white border border-gray-250 dark:bg-slate-950 dark:border-slate-855 hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-200 px-6 py-3 rounded-xl text-sm font-semibold transition"
           >
             Hủy
@@ -339,39 +449,162 @@ const isTFCorrectA = question.type === 'true_false' && question.answers[0]?.is_c
   </div>
 </Layout>
 
-<script lang="ts">
-  const typeSelect = document.getElementById('type') as HTMLSelectElement | null;
-  const choicesContainer = document.getElementById('choices-container');
-  const tfContainer = document.getElementById('tf-container');
-  const saContainer = document.getElementById('sa-container');
+<script>
+  // @ts-nocheck
+  let subQCount = 0;
 
-  if (typeSelect && choicesContainer && tfContainer && saContainer) {
-    typeSelect.addEventListener('change', () => {
-      const val = typeSelect.value;
-      
-      // Hide all first
-      choicesContainer.classList.add('hidden');
-      tfContainer.classList.add('hidden');
-      saContainer.classList.add('hidden');
-      
-      // Clear required from text inputs
-      document.querySelectorAll('#choices-container input[type="text"]').forEach(input => {
-        input.removeAttribute('required');
-      });
-      document.getElementById('sa_correct')?.removeAttribute('required');
-      
-      if (val === 'true_false') {
-        tfContainer.classList.remove('hidden');
-      } else if (val === 'sa') {
-        saContainer.classList.remove('hidden');
-        document.getElementById('sa_correct')?.setAttribute('required', 'true');
-      } else {
-        // single_choice, multiple_choice, msq
-        choicesContainer.classList.remove('hidden');
-        document.querySelectorAll('#choices-container input[type="text"]').forEach(input => {
-          input.setAttribute('required', 'true');
-        });
-      }
-    });
+  function addSubQuestion(data = null) {
+    const container = document.getElementById('sub-questions-list');
+    const countInput = document.getElementById('sub_q_count');
+    if (!container || !countInput) return;
+
+    const idx = subQCount++;
+    const div = document.createElement('div');
+    div.className = 'p-5 rounded-2xl border border-gray-250 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/30 space-y-4 relative group';
+    div.id = `sub-q-block-${idx}`;
+
+    const defaultQ = data || { question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_option: 'A', explanation: '' };
+
+    div.innerHTML = `
+      <div class="flex items-center justify-between border-b border-gray-250 dark:border-slate-800/80 pb-3">
+        <h4 class="text-sm font-black text-gray-800 dark:text-slate-200">Câu hỏi phụ #${idx + 1}</h4>
+        <button type="button" onclick="document.getElementById('sub-q-block-${idx}').remove();"
+          class="text-xs font-bold text-rose-500 hover:text-rose-600 transition flex items-center gap-0.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          Xóa
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1">Nội dung câu hỏi phụ</label>
+          <input type="text" name="sub_q_${idx}_text" value="${defaultQ.question}" required
+            placeholder="Ví dụ: What is the main idea of the passage?"
+            class="w-full px-4 py-2.5 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-sm focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100" />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          ${['A','B','C','D'].map(L => {
+            const key = `option_${L.toLowerCase()}`;
+            return `
+              <div class="flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-white dark:bg-slate-800 border border-gray-250 dark:border-slate-800 flex items-center justify-center font-black text-xs text-gray-500 dark:text-slate-400">${L}</span>
+                <input type="text" name="sub_q_${idx}_opt_${L}" value="${defaultQ[key] || ''}" required
+                  placeholder="Phương án ${L}..."
+                  class="flex-1 px-3 py-2 rounded-lg border border-gray-250 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-xs focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100" />
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-bold text-gray-500 dark:text-slate-400">Đáp án đúng:</span>
+            <div class="flex items-center gap-4">
+              ${['A','B','C','D'].map(L => `
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                  <input type="radio" name="sub_q_${idx}_correct" value="${L}" ${defaultQ.correct_option === L ? 'checked' : ''}
+                    class="h-4 w-4 text-blue-600 focus:ring-blue-500" />
+                  <span class="text-xs font-bold text-gray-700 dark:text-slate-350">${L}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-extrabold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1">Giải thích (Tùy chọn)</label>
+          <input type="text" name="sub_q_${idx}_explanation" value="${defaultQ.explanation || ''}"
+            placeholder="Ví dụ: Lời giải thích tại sao chọn đáp án này..."
+            class="w-full px-4 py-2 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-white dark:bg-slate-900 text-xs focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100" />
+        </div>
+      </div>
+    `;
+    container.appendChild(div);
+    countInput.value = String(subQCount);
   }
+
+  function updateAnswerForm(type) {
+    const choicesEl   = document.getElementById('choices-container');
+    const tfEl        = document.getElementById('tf-container');
+    const msqEl       = document.getElementById('msq-container');
+    const saEl        = document.getElementById('sa-container');
+    const tlEl        = document.getElementById('tl-container');
+    const readListEl  = document.getElementById('read-list-container');
+    const audioUrlBlock = document.getElementById('audio-url-block');
+    const saInput     = document.getElementById('sa_correct');
+    const audioInput  = document.getElementById('audio_url');
+
+    [choicesEl, tfEl, msqEl, saEl, tlEl, readListEl].forEach(el => el?.classList.add('hidden'));
+
+    document.querySelectorAll('#choices-container input[type="text"]').forEach(i => i.required = false);
+    if (saInput) saInput.required = false;
+    if (audioInput) audioInput.required = false;
+
+    if (type === 'single_choice') {
+      choicesEl?.classList.remove('hidden');
+      document.querySelectorAll('#choices-container input[type="text"]').forEach(i => i.required = true);
+    } else if (type === 'multiple_choice') {
+      choicesEl?.classList.remove('hidden');
+      document.querySelectorAll('#choices-container input[type="text"]').forEach(i => i.required = true);
+    } else if (type === 'true_false') {
+      tfEl?.classList.remove('hidden');
+    } else if (type === 'msq') {
+      msqEl?.classList.remove('hidden');
+    } else if (type === 'sa') {
+      saEl?.classList.remove('hidden');
+      if (saInput) saInput.required = true;
+    } else if (type === 'tl') {
+      tlEl?.classList.remove('hidden');
+    } else if (type === 'read' || type === 'list') {
+      readListEl?.classList.remove('hidden');
+      if (type === 'list') {
+        audioUrlBlock?.classList.remove('hidden');
+        if (audioInput) audioInput.required = true;
+      } else {
+        audioUrlBlock?.classList.add('hidden');
+      }
+    }
+  }
+
+  function init() {
+    const typeSelect = document.getElementById('type');
+    typeSelect?.addEventListener('change', () => {
+      updateAnswerForm(typeSelect.value);
+    });
+
+    document.getElementById('btn-add-sub-q')?.addEventListener('click', () => {
+      addSubQuestion();
+    });
+
+    // Populate existing subquestions
+    const dataRoot = document.getElementById('questions-data-root');
+    if (dataRoot) {
+      const type = dataRoot.getAttribute('data-type') || '';
+      try {
+        const rawSubQs = dataRoot.getAttribute('data-sub-questions');
+        if (rawSubQs) {
+          const subQs = JSON.parse(rawSubQs);
+          if (Array.isArray(subQs) && subQs.length > 0) {
+            subQs.forEach(q => addSubQuestion(q));
+          } else if (type === 'read' || type === 'list') {
+            // Default blank subquestions if empty
+            const defaultCount = type === 'read' ? 3 : 2;
+            for (let k = 0; k < defaultCount; k++) {
+              addSubQuestion();
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to parse sub questions', err);
+      }
+    }
+
+    if (typeSelect) {
+      updateAnswerForm(typeSelect.value);
+    }
+  }
+
+  init();
+  document.addEventListener('astro:page-load', init);
 </script>

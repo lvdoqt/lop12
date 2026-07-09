@@ -1,4 +1,4 @@
-﻿---
+---
 import Layout from '../../../layouts/Layout.astro';
 import { db } from '../../../services/db';
 
@@ -6,7 +6,7 @@ export const prerender = false;
 
 const user = Astro.locals.user;
 if (!user || (user.role !== 'admin' && user.role !== 'teacher')) {
-  return Astro.redirect('/dashboard');
+  return Astro.redirect('/lms/dashboard');
 }
 
 let successMsg = '';
@@ -74,6 +74,8 @@ const qTypeNames: Record<string, string> = {
   'multiple_choice': 'Nhiều lựa chọn',
   'true_false': 'Đúng / Sai',
   'msq': 'Đúng / Sai (THPT)',
+  'read': 'Đọc hiểu',
+  'list': 'Nghe hiểu',
   'sa': 'Trả lời ngắn',
   'tl': 'Tự luận'
 };
@@ -84,7 +86,7 @@ const qTypeNames: Record<string, string> = {
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <a href="/admin" class="inline-flex items-center text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-slate-350 transition-colors uppercase tracking-wider mb-2">
+        <a href="/lms/admin" class="inline-flex items-center text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-slate-350 transition-colors uppercase tracking-wider mb-2">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
@@ -97,7 +99,7 @@ const qTypeNames: Record<string, string> = {
 
       <div>
         <a
-          href="/admin/questions/new"
+          href="/lms/admin/questions/new"
           class="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-xl shadow-md shadow-blue-500/10 transition text-sm"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -180,7 +182,9 @@ const qTypeNames: Record<string, string> = {
                   <td class="py-4 pr-3 max-w-xs md:max-w-md">
                     <p class="font-bold text-gray-900 dark:text-white truncate">{q.content.replace(/\$/g, '')}</p>
                     <span class="text-xs text-gray-450 dark:text-slate-500 mt-1 block">
-                      {q.answers.length} phương án trả lời • Đáp án đúng: {q.answers.filter(a => a.is_correct).map((_, i) => String.fromCharCode(65 + q.answers.findIndex(ans => ans.id === _.id))).join(', ')}
+                      {q.type === 'read' || q.type === 'list' 
+                        ? `${q.metadata?.questions?.length || 0} câu hỏi phụ`
+                        : `${q.answers.length} phương án trả lời • Đáp án đúng: ${q.answers.filter(a => a.is_correct).map((_) => String.fromCharCode(65 + q.answers.findIndex(ans => ans.id === _.id))).join(', ')}`}
                     </span>
                   </td>
                   
@@ -217,7 +221,7 @@ const qTypeNames: Record<string, string> = {
                   <!-- Actions -->
                   <td class="py-4 text-right space-x-3">
                     <a
-                      href={`/admin/questions/edit/${q.id}`}
+                      href={`/lms/admin/questions/edit/${q.id}`}
                       class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
                     >
                       Sửa
@@ -269,9 +273,10 @@ const qTypeNames: Record<string, string> = {
   </div>
 </Layout>
 
-<script lang="ts">
-  const selectAll = document.getElementById('selectAll') as HTMLInputElement;
-  const qCheckboxes = document.querySelectorAll('.q-checkbox') as NodeListOf<HTMLInputElement>;
+<script>
+  // @ts-nocheck
+  const selectAll = document.getElementById('selectAll');
+  const qCheckboxes = document.querySelectorAll('.q-checkbox');
   const selectionActions = document.getElementById('selection-actions');
   const selectedCount = document.getElementById('selected-count');
   const btnCreateExam = document.getElementById('btn-create-exam');
@@ -306,9 +311,9 @@ const qTypeNames: Record<string, string> = {
   if (btnCreateExam) {
     btnCreateExam.addEventListener('click', () => {
       const checked = document.querySelectorAll('.q-checkbox:checked');
-      const ids = Array.from(checked).map((cb: any) => cb.value);
+      const ids = Array.from(checked).map(cb => cb.value);
       if (ids.length > 0) {
-        window.location.href = `/admin/exams/new?q=${ids.join(',')}`;
+        window.location.href = `/lms/admin/exams/new?q=${ids.join(',')}`;
       }
     });
   }

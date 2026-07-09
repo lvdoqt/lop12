@@ -6,15 +6,15 @@ export const prerender = false;
 
 const user = Astro.locals.user;
 if (!user || (user.role !== 'admin' && user.role !== 'teacher')) {
-  return Astro.redirect('/dashboard');
+  return Astro.redirect('/lms/dashboard');
 }
 
 const { id, lid } = Astro.params;
-if (!id || !lid) return Astro.redirect('/admin/courses');
+if (!id || !lid) return Astro.redirect('/lms/admin/courses');
 
 const course = await db.getCourseById(id);
 const lesson = await db.getCourseLessonById(lid);
-if (!course || !lesson) return Astro.redirect(`/admin/courses/${id}`);
+if (!course || !lesson) return Astro.redirect(`/lms/admin/courses/${id}`);
 
 let error = '';
 
@@ -32,7 +32,7 @@ if (Astro.request.method === 'POST') {
   } else {
     try {
       await db.updateCourseLesson(lid, { title, content: content || null, video_url, order_index, duration, is_published });
-      return Astro.redirect(`/admin/courses/${id}`);
+      return Astro.redirect(`/lms/admin/courses/${id}`);
     } catch (e: any) {
       error = e.message || 'Có lỗi xảy ra.';
     }
@@ -43,7 +43,7 @@ if (Astro.request.method === 'POST') {
 <Layout title={`Sửa: ${lesson.title}`}>
   <div class="max-w-3xl mx-auto space-y-6">
     <div>
-      <a href={`/admin/courses/${id}`} class="inline-flex items-center text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-slate-350 transition-colors uppercase tracking-wider mb-2">
+      <a href={`/lms/admin/courses/${id}`} class="inline-flex items-center text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-slate-350 transition-colors uppercase tracking-wider mb-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
         {course.title}
       </a>
@@ -95,7 +95,7 @@ if (Astro.request.method === 'POST') {
         <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-xl text-sm transition shadow shadow-blue-500/20">
           Lưu thay đổi
         </button>
-        <a href={`/admin/courses/${id}`} class="px-5 py-2.5 rounded-xl border border-gray-250 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm font-semibold transition">
+        <a href={`/lms/admin/courses/${id}`} class="px-5 py-2.5 rounded-xl border border-gray-250 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 text-sm font-semibold transition">
           Hủy
         </a>
       </div>

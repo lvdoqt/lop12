@@ -11,17 +11,17 @@ const getStats = (subjectSlug: string) => ({
 
 type SubjectMeta = { icon: string; desc: string; image: string; borderHover: string; textAccent: string };
 const subjectMetas: Record<string, SubjectMeta> = {
-  'toan-12':     { icon: '📐', desc: 'Hàm số, Tích phân, Hình học Oxyz, Số phức...',       image: '/images/subjects/math.png',        borderHover: 'hover:border-blue-400   dark:hover:border-blue-600',   textAccent: 'text-blue-600   dark:text-blue-400'   },
-  'vat-ly-12':   { icon: '⚡', desc: 'Dao động cơ, Sóng cơ, Điện xoay chiều, Quang...',    image: '/images/subjects/physics.png',     borderHover: 'hover:border-purple-400  dark:hover:border-purple-600',  textAccent: 'text-purple-600 dark:text-purple-400' },
-  'hoa-hoc-12':  { icon: '🧪', desc: 'Este, Lipit, Amin, Polime, Đại cương kim loại...',   image: '/images/subjects/chemistry.png',   borderHover: 'hover:border-emerald-400 dark:hover:border-emerald-600', textAccent: 'text-emerald-600 dark:text-emerald-400' },
-  'sinh-hoc-12': { icon: '🧬', desc: 'Di truyền học, Tiến hóa, Sinh thái, Sinh quyển...',  image: '/images/subjects/biology.png',     borderHover: 'hover:border-teal-400   dark:hover:border-teal-600',   textAccent: 'text-teal-600   dark:text-teal-400'   },
-  'ngu-van-12':  { icon: '📖', desc: 'Đọc hiểu văn bản, Nghị luận xã hội & văn học...',    image: '/images/subjects/literature.png',  borderHover: 'hover:border-rose-400    dark:hover:border-rose-600',    textAccent: 'text-rose-600   dark:text-rose-400'   },
-  'lich-su-12':  { icon: '🏛️', desc: 'Lịch sử Việt Nam, Thế giới hiện đại, Cách mạng...', image: '/images/subjects/history.png',     borderHover: 'hover:border-orange-400  dark:hover:border-orange-600',  textAccent: 'text-orange-600 dark:text-orange-400' },
-  'dia-ly-12':   { icon: '🌏', desc: 'Địa lý tự nhiên, Kinh tế vùng, Dân số, Biển đảo...', image: '/images/subjects/geography.png',   borderHover: 'hover:border-cyan-400    dark:hover:border-cyan-600',    textAccent: 'text-cyan-600   dark:text-cyan-400'   },
-  'ktpl-12':     { icon: '⚖️', desc: 'Kinh tế vi mô, Pháp luật, Quyền công dân VN...',    image: '/images/subjects/ktpl.png',        borderHover: 'hover:border-yellow-400  dark:hover:border-yellow-600',  textAccent: 'text-yellow-600 dark:text-yellow-400' },
-  'tieng-anh-12':{ icon: '🇬🇧', desc: 'Ngữ pháp, Phát âm, Từ vựng chủ đề, Đọc hiểu...',  image: '/images/subjects/english.png',     borderHover: 'hover:border-amber-400   dark:hover:border-amber-600',   textAccent: 'text-amber-600  dark:text-amber-400'  },
-  'tin-hoc-12':  { icon: '💻', desc: 'Lập trình Python, CSDL, Mạng máy tính, CNTT...',    image: '/images/subjects/informatics.png', borderHover: 'hover:border-violet-400  dark:hover:border-violet-600',  textAccent: 'text-violet-600 dark:text-violet-400' },
-  'cong-nghe-12':{ icon: '⚙️', desc: 'Điện tử, Cơ khí, Thiết kế kỹ thuật, Tự động...',   image: '/images/subjects/technology.png',  borderHover: 'hover:border-slate-400   dark:hover:border-slate-500',   textAccent: 'text-slate-600  dark:text-slate-400'  },
+  'toan-12':     { icon: '📐', desc: 'Hàm số, Tích phân, Hình học Oxyz, Số phức...',       image: '/lms/images/subjects/math.png',        borderHover: 'hover:border-blue-400   dark:hover:border-blue-600',   textAccent: 'text-blue-600   dark:text-blue-400'   },
+  'vat-ly-12':   { icon: '⚡', desc: 'Dao động cơ, Sóng cơ, Điện xoay chiều, Quang...',    image: '/lms/images/subjects/physics.png',     borderHover: 'hover:border-purple-400  dark:hover:border-purple-600',  textAccent: 'text-purple-600 dark:text-purple-400' },
+  'hoa-hoc-12':  { icon: '🧪', desc: 'Este, Lipit, Amin, Polime, Đại cương kim loại...',   image: '/lms/images/subjects/chemistry.png',   borderHover: 'hover:border-emerald-400 dark:hover:border-emerald-600', textAccent: 'text-emerald-600 dark:text-emerald-400' },
+  'sinh-hoc-12': { icon: '🧬', desc: 'Di truyền học, Tiến hóa, Sinh thái, Sinh quyển...',  image: '/lms/images/subjects/biology.png',     borderHover: 'hover:border-teal-400   dark:hover:border-teal-600',   textAccent: 'text-teal-600   dark:text-teal-400'   },
+  'ngu-van-12':  { icon: '📖', desc: 'Đọc hiểu văn bản, Nghị luận xã hội & văn học...',    image: '/lms/images/subjects/literature.png',  borderHover: 'hover:border-rose-400    dark:hover:border-rose-600',    textAccent: 'text-rose-600   dark:text-rose-400'   },
+  'lich-su-12':  { icon: '🏛️', desc: 'Lịch sử Việt Nam, Thế giới hiện đại, Cách mạng...', image: '/lms/images/subjects/history.png',     borderHover: 'hover:border-orange-400  dark:hover:border-orange-600',  textAccent: 'text-orange-600 dark:text-orange-400' },
+  'dia-ly-12':   { icon: '🌏', desc: 'Địa lý tự nhiên, Kinh tế vùng, Dân số, Biển đảo...', image: '/lms/images/subjects/geography.png',   borderHover: 'hover:border-cyan-400    dark:hover:border-cyan-600',    textAccent: 'text-cyan-600   dark:text-cyan-400'   },
+  'ktpl-12':     { icon: '⚖️', desc: 'Kinh tế vi mô, Pháp luật, Quyền công dân VN...',    image: '/lms/images/subjects/ktpl.png',        borderHover: 'hover:border-yellow-400  dark:hover:border-yellow-600',  textAccent: 'text-yellow-600 dark:text-yellow-400' },
+  'tieng-anh-12':{ icon: '🇬🇧', desc: 'Ngữ pháp, Phát âm, Từ vựng chủ đề, Đọc hiểu...',  image: '/lms/images/subjects/english.png',     borderHover: 'hover:border-amber-400   dark:hover:border-amber-600',   textAccent: 'text-amber-600  dark:text-amber-400'  },
+  'tin-hoc-12':  { icon: '💻', desc: 'Lập trình Python, CSDL, Mạng máy tính, CNTT...',    image: '/lms/images/subjects/informatics.png', borderHover: 'hover:border-violet-400  dark:hover:border-violet-600',  textAccent: 'text-violet-600 dark:text-violet-400' },
+  'cong-nghe-12':{ icon: '⚙️', desc: 'Điện tử, Cơ khí, Thiết kế kỹ thuật, Tự động...',   image: '/lms/images/subjects/technology.png',  borderHover: 'hover:border-slate-400   dark:hover:border-slate-500',   textAccent: 'text-slate-600  dark:text-slate-400'  },
 };
 
 const subjectRows = [
@@ -76,7 +76,7 @@ const subjectRows = [
             {rowSubjects.map(subject => {
               const meta: SubjectMeta = subjectMetas[subject.slug] || {
                 icon: '📚', desc: 'Tài liệu ôn tập và đề thi trắc nghiệm.',
-                image: '/images/subjects/math.png',
+                image: '/lms/images/subjects/math.png',
                 borderHover: 'hover:border-blue-400',
                 textAccent: 'text-blue-600 dark:text-blue-400',
               };
@@ -84,7 +84,7 @@ const subjectRows = [
 
               return (
                 <a
-                  href={`/ly-thuyet/${subject.slug}`}
+                  href={`/lms/ly-thuyet/${subject.slug}`}
                   class={`bg-white dark:bg-[#22223A]/90 border border-slate-200/60 dark:border-slate-800/40 rounded-2xl flex flex-col overflow-hidden
                          hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 group relative ${meta.borderHover}`}
                 >

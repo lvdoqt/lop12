@@ -6,7 +6,7 @@ export const prerender = false;
 
 const user = Astro.locals.user;
 if (!user || (user.role !== 'admin' && user.role !== 'teacher')) {
-  return Astro.redirect('/dashboard');
+  return Astro.redirect('/lms/dashboard');
 }
 
 const isAdmin = user.role === 'admin';
@@ -69,7 +69,7 @@ const typeCounts = Object.keys(examTypeMeta).map(t => ({
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <a href="/admin" class="inline-flex items-center text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors uppercase tracking-wider mb-2">
+        <a href="/lms/admin" class="inline-flex items-center text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors uppercase tracking-wider mb-2">
           <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
           </svg>
@@ -85,7 +85,7 @@ const typeCounts = Object.keys(examTypeMeta).map(t => ({
 
       <div class="flex gap-3 shrink-0">
         <a
-          href="/de-thi"
+          href="/lms/de-thi"
           target="_blank"
           class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
         >
@@ -95,7 +95,7 @@ const typeCounts = Object.keys(examTypeMeta).map(t => ({
           Xem trang học sinh
         </a>
         <a
-          href="/admin/exams/new"
+          href="/lms/admin/exams/new"
           class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow shadow-blue-500/15 transition"
         >
           <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
@@ -123,7 +123,7 @@ const typeCounts = Object.keys(examTypeMeta).map(t => ({
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
       {typeCounts.map(t => (
         <a
-          href={`/admin/exams?loai=${t.type}${filterSub ? '&mon='+filterSub : ''}`}
+          href={`/lms/admin/exams?loai=${t.type}${filterSub ? '&mon='+filterSub : ''}`}
           class={`flex flex-col items-center justify-center p-4 rounded-2xl border text-center cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 ${t.badge} ${filterType === t.type ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
         >
           <span class="text-2xl font-extrabold">{t.count}</span>
@@ -133,7 +133,7 @@ const typeCounts = Object.keys(examTypeMeta).map(t => ({
     </div>
 
     <!-- Filter bar -->
-    <form method="GET" action="/admin/exams" class="flex flex-wrap gap-3 items-center">
+    <form method="GET" action="/lms/admin/exams" class="flex flex-wrap gap-3 items-center">
       <select
         name="mon"
         onchange="this.form.submit()"
@@ -157,7 +157,7 @@ const typeCounts = Object.keys(examTypeMeta).map(t => ({
       </select>
 
       {(filterSub || filterType) && (
-        <a href="/admin/exams" class="text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 underline transition-colors">
+        <a href="/lms/admin/exams" class="text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 underline transition-colors">
           Xóa bộ lọc
         </a>
       )}
@@ -177,7 +177,7 @@ const typeCounts = Object.keys(examTypeMeta).map(t => ({
             {(filterSub || filterType) ? 'Không có đề thi phù hợp với bộ lọc này.' : 'Bấm "Tạo đề thi mới" để bắt đầu!'}
           </p>
           {!filterSub && !filterType && (
-            <a href="/admin/exams/new" class="inline-flex items-center gap-1.5 px-5 py-2.5 mt-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow shadow-blue-500/15 transition">
+            <a href="/lms/admin/exams/new" class="inline-flex items-center gap-1.5 px-5 py-2.5 mt-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow shadow-blue-500/15 transition">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
               Tạo đề thi mới
             </a>
@@ -237,14 +237,14 @@ const typeCounts = Object.keys(examTypeMeta).map(t => ({
                     <td class="px-4 py-4 text-right">
                       <div class="flex items-center justify-end gap-3">
                         <a
-                          href={`/exams/${exam.slug || exam.id}`}
+                          href={`/lms/exams/${exam.slug || exam.id}`}
                           target="_blank"
                           class="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
                         >
                           Xem
                         </a>
                         <a
-                          href={`/admin/exams/edit/${exam.id}`}
+                          href={`/lms/admin/exams/edit/${exam.id}`}
                           class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline"
                         >
                           Sửa

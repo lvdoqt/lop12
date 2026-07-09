@@ -6,23 +6,23 @@ import { marked } from 'marked';
 export const prerender = false;
 
 const user = Astro.locals.user;
-if (!user) return Astro.redirect('/login');
+if (!user) return Astro.redirect('/lms/login');
 
 const { slug, lessonId } = Astro.params;
-if (!slug || !lessonId) return Astro.redirect('/khoa-hoc');
+if (!slug || !lessonId) return Astro.redirect('/lms/khoa-hoc');
 
 const course = await db.getCourseBySlug(slug);
-if (!course || !course.is_published) return Astro.redirect('/khoa-hoc');
+if (!course || !course.is_published) return Astro.redirect('/lms/khoa-hoc');
 
 // Ensure user is enrolled
 const isEnrolled = await db.isUserEnrolled(course.id, user.id);
-if (!isEnrolled) return Astro.redirect(`/khoa-hoc/${slug}`);
+if (!isEnrolled) return Astro.redirect(`/lms/khoa-hoc/${slug}`);
 
 const lessons = await db.getCourseLessons(course.id);
 const publishedLessons = lessons.filter(l => l.is_published);
 const currentLesson = publishedLessons.find(l => l.id === lessonId);
 
-if (!currentLesson) return Astro.redirect(`/khoa-hoc/${slug}`);
+if (!currentLesson) return Astro.redirect(`/lms/khoa-hoc/${slug}`);
 
 const currentIndex = publishedLessons.findIndex(l => l.id === lessonId);
 const prevLesson = currentIndex > 0 ? publishedLessons[currentIndex - 1] : null;
@@ -51,9 +51,9 @@ const ytId = currentLesson.video_url ? getYouTubeId(currentLesson.video_url) : n
     <div class="flex-1 min-w-0">
       <!-- Breadcrumb -->
       <nav class="flex items-center text-sm font-medium text-gray-500 dark:text-slate-400 mb-4 whitespace-nowrap overflow-x-auto pb-2">
-        <a href="/khoa-hoc" class="hover:text-blue-600 dark:hover:text-blue-400 transition">Khóa học</a>
+        <a href="/lms/khoa-hoc" class="hover:text-blue-600 dark:hover:text-blue-400 transition">Khóa học</a>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-2 text-gray-300 dark:text-slate-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-        <a href={`/khoa-hoc/${slug}`} class="hover:text-blue-600 dark:hover:text-blue-400 transition truncate max-w-[150px] sm:max-w-xs">{course.title}</a>
+        <a href={`/lms/khoa-hoc/${slug}`} class="hover:text-blue-600 dark:hover:text-blue-400 transition truncate max-w-[150px] sm:max-w-xs">{course.title}</a>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-2 text-gray-300 dark:text-slate-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
         <span class="text-gray-900 dark:text-white truncate">Bài {currentIndex + 1}</span>
       </nav>
@@ -83,7 +83,7 @@ const ytId = currentLesson.video_url ? getYouTubeId(currentLesson.video_url) : n
           <div class="mt-10 pt-6 border-t border-gray-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div class="w-full sm:w-auto">
               {prevLesson ? (
-                <a href={`/khoa-hoc/${slug}/${prevLesson.id}`} class="inline-flex items-center justify-center w-full sm:w-auto px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 transition">
+                <a href={`/lms/khoa-hoc/${slug}/${prevLesson.id}`} class="inline-flex items-center justify-center w-full sm:w-auto px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 transition">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
                   Bài trước
                 </a>
@@ -108,7 +108,7 @@ const ytId = currentLesson.video_url ? getYouTubeId(currentLesson.video_url) : n
               </button>
 
               {nextLesson && (
-                <a href={`/khoa-hoc/${slug}/${nextLesson.id}`} class="inline-flex items-center justify-center w-full sm:w-auto px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-900 dark:text-white border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 transition">
+                <a href={`/lms/khoa-hoc/${slug}/${nextLesson.id}`} class="inline-flex items-center justify-center w-full sm:w-auto px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-900 dark:text-white border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 transition">
                   Bài tiếp theo
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" /></svg>
                 </a>
@@ -136,7 +136,7 @@ const ytId = currentLesson.video_url ? getYouTubeId(currentLesson.video_url) : n
             const done = completedIds.has(lesson.id);
             return (
               <a 
-                href={`/khoa-hoc/${slug}/${lesson.id}`}
+                href={`/lms/khoa-hoc/${slug}/${lesson.id}`}
                 class={`flex items-start gap-3 p-3 transition border-l-2 ${isCurrent ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-600 dark:border-blue-500' : 'border-transparent hover:bg-gray-50 dark:hover:bg-slate-800/50'}`}
               >
                 <div class="mt-0.5 shrink-0">
@@ -177,7 +177,7 @@ const ytId = currentLesson.video_url ? getYouTubeId(currentLesson.video_url) : n
       completeBtn.innerHTML = 'Đang xử lý...';
       
       try {
-        const res = await fetch('/api/courses/progress', {
+        const res = await fetch('/lms/api/courses/progress', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ lessonId })

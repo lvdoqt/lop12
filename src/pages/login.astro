@@ -100,7 +100,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
 
       <!-- Header -->
       <div class="text-center space-y-3">
-        <a href="/" class="inline-flex items-center gap-3 mb-1 group">
+        <a href="/lms/" class="inline-flex items-center gap-3 mb-1 group">
           <div class="logo-icon w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-white text-lg tracking-tight">L</div>
           <span class="text-xl font-bold text-slate-800 dark:text-white tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">LỚP 12 LMS</span>
         </a>
@@ -108,7 +108,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
           <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Chào mừng trở lại 👋</h1>
           <p class="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
             Chưa có tài khoản?
-            <a href="/register" class="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 ml-1 transition-colors">Đăng ký ngay →</a>
+            <a href="/lms/register" class="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 ml-1 transition-colors">Đăng ký ngay →</a>
           </p>
         </div>
       </div>
@@ -151,7 +151,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
         <div class="space-y-1.5">
           <div class="flex items-center justify-between">
             <label for="password" class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Mật khẩu</label>
-            <a href="/forgot-password" class="text-xs font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors">Quên mật khẩu?</a>
+            <a href="/lms/forgot-password" class="text-xs font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors">Quên mật khẩu?</a>
           </div>
           <div class="relative">
             <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
@@ -187,7 +187,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
       <!-- Footer note -->
       <p class="text-center text-xs text-slate-400 dark:text-slate-500 pt-2">
         Bằng cách đăng nhập, bạn đồng ý với
-        <a href="/privacy" class="underline underline-offset-2 hover:text-indigo-500 transition-colors">Chính sách bảo mật</a>
+        <a href="/lms/privacy" class="underline underline-offset-2 hover:text-indigo-500 transition-colors">Chính sách bảo mật</a>
         của chúng tôi.
       </p>
 
@@ -277,12 +277,12 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
       if (role === 'teacher') userId = 'mock-user-teacher';
       if (role === 'admin') userId = 'mock-user-admin';
       try {
-        const res = await fetch('/api/auth/session', {
+        const res = await fetch('/lms/api/auth/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ mockUserId: userId })
         });
-        if (res.ok) window.location.href = '/dashboard';
+        if (res.ok) window.location.href = '/lms/dashboard';
         else showError('Không thể thiết lập phiên đăng nhập.');
       } catch {
         showError('Lỗi kết nối máy chủ.');
@@ -329,7 +329,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
         }
 
         // Save tokens to server-side cookies via /api/auth/session
-        const sessionRes = await fetch('/api/auth/session', {
+        const sessionRes = await fetch('/lms/api/auth/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -341,7 +341,7 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJ
         if (sessionRes.ok) {
           showSuccess('✅ Đăng nhập thành công! Đang chuyển hướng...');
           const params = new URLSearchParams(window.location.search);
-          const redirect = params.get('redirect') || '/dashboard';
+          const redirect = params.get('redirect') || '/lms/dashboard';
           setTimeout(() => window.location.href = redirect, 800);
         } else {
           showError('Lỗi thiết lập phiên đăng nhập.');

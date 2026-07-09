@@ -6,7 +6,7 @@ export const prerender = false;
 
 const user = Astro.locals.user;
 if (!user || (user.role !== 'admin' && user.role !== 'teacher')) {
-  return Astro.redirect('/dashboard');
+  return Astro.redirect('/lms/dashboard');
 }
 
 let errMsg = '';
@@ -42,7 +42,7 @@ if (Astro.request.method === 'POST') {
         easy: 'easy', medium: 'medium', hard: 'hard',
         dễ: 'easy', 'trung bình': 'medium', khó: 'hard',
       };
-      const typeMap: Record<string, 'single_choice' | 'multiple_choice' | 'true_false' | 'msq' | 'sa' | 'tl'> = {
+      const typeMap: Record<string, 'single_choice' | 'multiple_choice' | 'true_false' | 'msq' | 'sa' | 'tl' | 'read' | 'list'> = {
         mcq: 'single_choice',
         single_choice: 'single_choice',
         msq: 'msq',
@@ -51,7 +51,9 @@ if (Astro.request.method === 'POST') {
         tf: 'true_false',
         true_false: 'true_false',
         sa: 'sa',
-        tl: 'tl'
+        tl: 'tl',
+        read: 'read',
+        list: 'list'
       };
 
       for (const q of qs) {
@@ -63,7 +65,7 @@ if (Astro.request.method === 'POST') {
 
         let answers: { content: string; is_correct: boolean }[] = [];
 
-        if (qType === 'single_choice' || qType === 'multiple_choice' || qType === 'msq') {
+        if (qType === 'single_choice' || qType === 'multiple_choice' || qType === 'msq' || qType === 'read' || qType === 'list') {
           const options = [
             { key: 'A', text: q.option_a },
             { key: 'B', text: q.option_b },
@@ -101,7 +103,7 @@ if (Astro.request.method === 'POST') {
     }
 
     await db.createExam({ title, duration, subject_id, exam_type, created_by: user.id, ...(password ? { password } : {}) }, questionIds);
-    return Astro.redirect('/admin/exams');
+    return Astro.redirect('/lms/admin/exams');
 
   } catch (err: any) {
     errMsg = err.message || 'Lỗi tạo đề thi mới.';
@@ -131,9 +133,9 @@ if (preselectedIds.length > 0) {
     <!-- Breadcrumb -->
     <div>
       <nav class="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-        <a href="/admin" class="hover:text-slate-600 dark:hover:text-slate-300 transition-colors">Quản trị</a>
+        <a href="/lms/admin" class="hover:text-slate-600 dark:hover:text-slate-300 transition-colors">Quản trị</a>
         <span>/</span>
-        <a href="/admin/exams" class="hover:text-slate-600 dark:hover:text-slate-300 transition-colors">Đề thi</a>
+        <a href="/lms/admin/exams" class="hover:text-slate-600 dark:hover:text-slate-300 transition-colors">Đề thi</a>
         <span>/</span>
         <span class="text-ink dark:text-[#E8E0D0]">Tạo mới</span>
       </nav>
@@ -232,7 +234,7 @@ if (preselectedIds.length > 0) {
               <div class="text-3xl mb-2">📭</div>
               Môn học này chưa có câu hỏi nào.
               <div class="mt-3">
-                <a href="/admin/questions/new" class="inline-flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">Tạo câu hỏi mới →</a>
+                <a href="/lms/admin/questions/new" class="inline-flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">Tạo câu hỏi mới →</a>
               </div>
             </div>
             <div id="questions-list" class="space-y-2.5 max-h-[400px] overflow-y-auto hidden pr-1">
@@ -263,7 +265,7 @@ if (preselectedIds.length > 0) {
                 <h3 class="text-sm font-bold text-ink dark:text-[#E8E0D0]">Nhập JSON đề thi</h3>
                 <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Dán nội dung JSON theo mẫu bên dưới. Câu hỏi sẽ được tạo tự động.</p>
               </div>
-              <a href="/sample-questions.json" target="_blank" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">📄 Xem file mẫu</a>
+              <a href="/lms/sample-questions.json" target="_blank" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">📄 Xem file mẫu</a>
             </div>
 
             <div class="bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200/50 dark:border-amber-900/30 rounded-xl p-4 text-xs text-amber-700 dark:text-amber-400 space-y-1">
@@ -284,7 +286,7 @@ if (preselectedIds.length > 0) {
 
         <!-- Actions -->
         <div class="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800/60">
-          <a href="/admin/exams" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Hủy bỏ</a>
+          <a href="/lms/admin/exams" class="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Hủy bỏ</a>
           <button type="submit" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-500/15 hover:shadow-xl transition-all">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
             Tạo đề thi
@@ -409,7 +411,7 @@ if (preselectedIds.length > 0) {
   if (btnSample && jsonData) {
     btnSample.addEventListener('click', async () => {
       try {
-        const res = await fetch('/sample-questions.json');
+        const res = await fetch('/lms/sample-questions.json');
         const text = await res.text();
         jsonData.value = text;
         jsonData.dispatchEvent(new Event('input'));

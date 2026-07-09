@@ -6,13 +6,13 @@ export const prerender = false;
 
 const { id } = Astro.params;
 if (!id) {
-  return Astro.redirect('/ly-thuyet');
+  return Astro.redirect('/lms/ly-thuyet');
 }
 
 // Accept both slug and UUID (backward compat)
 const exam = await db.getExamBySlug(id);
 if (!exam) {
-  return Astro.redirect('/de-thi');
+  return Astro.redirect('/lms/de-thi');
 }
 
 const user = Astro.locals.user;
@@ -37,7 +37,7 @@ if (Astro.request.method === 'POST') {
   if (passwordOk) {
     try {
       const attempt = await db.createAttempt(user?.id, exam.id);
-      return Astro.redirect(`/exams/${exam.slug}/take?attemptId=${attempt.id}`);
+      return Astro.redirect(`/lms/exams/${exam.slug}/take?attemptId=${attempt.id}`);
     } catch (err: any) {
       console.error('Failed to create exam attempt:', err);
       // @ts-ignore
@@ -160,11 +160,11 @@ const passwordError = serverPasswordError;
             </div>
           </div>
           <div class="flex gap-3">
-            <a href={`/login?redirect=/exams/${id}`}
+            <a href={`/lms/login?redirect=/exams/${id}`}
               class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-500/20 transition-all text-sm text-center">
               Đăng nhập để làm bài
             </a>
-            <a href="/register"
+            <a href="/lms/register"
               class="flex-1 border border-gray-250 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-300 font-semibold py-3.5 rounded-xl transition-all text-sm text-center">
               Đăng ký tài khoản
             </a>
@@ -200,7 +200,7 @@ const passwordError = serverPasswordError;
             </button>
           </form>
           <p class="text-xs text-gray-400 dark:text-slate-500">
-            Hoặc <a href={`/login?redirect=/exams/${id}`} class="text-indigo-500 hover:text-indigo-600 font-semibold underline">đăng nhập</a> để lưu kết quả
+            Hoặc <a href={`/lms/login?redirect=/exams/${id}`} class="text-indigo-500 hover:text-indigo-600 font-semibold underline">đăng nhập</a> để lưu kết quả
           </p>
         </div>
 
@@ -280,7 +280,7 @@ const passwordError = serverPasswordError;
     {user && (
       <p class="text-center text-xs text-gray-400 dark:text-slate-500">
         Đang đăng nhập với tư cách: <strong class="text-gray-600 dark:text-slate-300">{user.fullname || user.email}</strong>
-        · <a href="/dashboard" class="underline hover:text-indigo-500 transition-colors">Dashboard</a>
+        · <a href="/lms/dashboard" class="underline hover:text-indigo-500 transition-colors">Dashboard</a>
       </p>
     )}
   </div>

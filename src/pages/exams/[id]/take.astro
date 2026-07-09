@@ -10,7 +10,7 @@ const { id } = Astro.params;
 const attemptId = Astro.url.searchParams.get('attemptId');
 
 if (!id || !attemptId) {
-  return Astro.redirect('/dashboard');
+  return Astro.redirect('/lms/dashboard');
 }
 
 const user = Astro.locals.user;
@@ -18,22 +18,22 @@ const exam = await db.getExamBySlug(id);
 const attempt = await db.getAttemptById(attemptId);
 
 if (!exam || !attempt) {
-  return Astro.redirect('/de-thi');
+  return Astro.redirect('/lms/de-thi');
 }
 
 if (attempt.user_id && attempt.user_id !== user?.id) {
-  return Astro.redirect('/dashboard');
+  return Astro.redirect('/lms/dashboard');
 }
 
 if (exam.password && !user) {
-  return Astro.redirect(`/login?redirect=/exams/${exam.slug}`);
+  return Astro.redirect(`/lms/login?redirect=/exams/${exam.slug}`);
 }
 
 if (attempt.score !== null) {
-  return Astro.redirect(`/exams/${exam.slug}/result/${attempt.id}`);
+  return Astro.redirect(`/lms/exams/${exam.slug}/result/${attempt.id}`);
 }
 
-const MCQ_TYPES = ['single_choice', 'multiple_choice', 'true_false'];
+const MCQ_TYPES = ['single_choice', 'multiple_choice', 'true_false', 'read', 'list'];
 
 const allQuestions = await db.getQuestionsByExamId(exam.id);
 
