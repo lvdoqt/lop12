@@ -4,12 +4,11 @@ import { createClient } from '@supabase/supabase-js';
 const _SUPABASE_URL_DEFAULT = 'https://dwezesrukmwygqnmefbz.supabase.co';
 const _SUPABASE_ANON_KEY_DEFAULT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3ZXplc3J1a213eWdxbm1lZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMzA0NjIsImV4cCI6MjA5NTcwNjQ2Mn0.LCojdG6LGAQDHw9ewbXFiJOFIvrFYNPZLr4KRNmystw';
 
-// ── Env resolver (Cloudflare Workers / Node.js / Vite SSR) ──────────────────
-// Cloudflare Workers runtime is a V8 isolate — no process.env.
+// ── Env resolver (Node.js / Vite SSR / Vercel) ──────────────────────────────
 // Variables are available via import.meta.env (injected by Vite at build time
-// for PUBLIC_ vars, and by CF runtime for secrets set via wrangler secret put).
+// for PUBLIC_ vars).
 export function resolveEnv(key: string): string {
-  // 1. import.meta.env — works on both Vite dev AND Cloudflare Workers
+  // 1. import.meta.env — works on Vite dev AND Edge/Serverless environments
   try {
     const val = (import.meta as any).env?.[key];
     if (val && val !== 'undefined') return val;
@@ -18,7 +17,7 @@ export function resolveEnv(key: string): string {
   try {
     const proc = (globalThis as Record<string, unknown>)['process'] as { env?: Record<string, string | undefined> } | undefined;
     if (proc?.env?.[key]) return proc.env[key]!;
-  } catch { /* not available in CF Workers */ }
+  } catch { /* not available in some edge runtimes */ }
   return '';
 }
 
