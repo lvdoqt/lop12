@@ -1,0 +1,42 @@
+import { t as __exportAll } from "./rolldown-runtime_D7D4PA-g.mjs";
+import { C as renderTemplate, E as maybeRenderHead, M as createAstro, N as createComponent, O as addAttribute, b as renderComponent } from "./render_FJwdtmM0.mjs";
+import { t as db } from "./db_ugDz1A2K.mjs";
+import "./compiler_DjieldEX.mjs";
+import { t as getCollection } from "./_astro_content_CYWRd-4B.mjs";
+import { t as $$Layout } from "./Layout_BRwPCKES.mjs";
+//#region src/pages/admin/lessons/index.astro
+var lessons_exports = /* @__PURE__ */ __exportAll({
+	default: () => $$Index,
+	file: () => $$file,
+	prerender: () => false,
+	url: () => $$url
+});
+createAstro("https://lop12.com");
+var $$Index = createComponent(async ($$result, $$props, $$slots) => {
+	const Astro = $$result.createAstro($$props, $$slots);
+	Astro.self = $$Index;
+	const user = Astro.locals.user;
+	if (!user || user.role !== "admin") return Astro.redirect("/lms/dashboard");
+	const sortedLessons = [...await getCollection("lessons")].sort((a, b) => {
+		const subCompare = a.id.localeCompare(b.id);
+		if (subCompare !== 0) return subCompare;
+		return 0;
+	});
+	const subjects = await db.getSubjects();
+	const getSubjectName = (slug) => {
+		return subjects.find((s) => s.slug === slug)?.name || slug;
+	};
+	return renderTemplate`${renderComponent($$result, "Layout", $$Layout, { "title": "Quản lý bài giảng JSON" }, { "default": ($$result) => renderTemplate`${maybeRenderHead($$result)}<div class="space-y-6"><!-- Header --><div><a href="/lms/admin" class="inline-flex items-center text-xs font-bold text-gray-400 hover:text-gray-600 dark:hover:text-slate-350 transition-colors uppercase tracking-wider mb-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>Quản trị Admin</a><h1 class="text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Quản lý bài giảng (JSON)</h1><p class="text-sm text-gray-500 dark:text-slate-400 mt-1">Hệ thống hiện tại sử dụng kiến trúc **Hybrid** với bài học là các file tĩnh dạng \`.json\` để đảm bảo hiệu năng tối đa.</p></div><!-- Hướng dẫn viết bài học bằng file JSON --><div class="p-6 rounded-2xl border border-blue-100 bg-blue-50/20 dark:border-slate-800 dark:bg-slate-900/50"><div class="flex items-start space-x-4"><div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg></div><div class="space-y-3 flex-1"><h3 class="font-bold text-gray-900 dark:text-white text-sm">Làm thế nào để thêm hoặc chỉnh sửa bài học?</h3><p class="text-xs text-gray-600 dark:text-slate-400 leading-relaxed">Vì bài giảng được lưu trữ dưới dạng file tĩnh, giáo viên/admin sẽ tạo hoặc chỉnh sửa trực tiếp các file \`.json\` nằm trong thư mục nguồn:<code class="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-slate-800 font-mono text-[11px] text-blue-600 dark:text-blue-400 mx-1">src/content/lessons/&lt;môn-học&gt;/&lt;tên-bài-viết&gt;.json</code></p></div></div></div><!-- Table of JSON lessons --><div class="bg-white border border-gray-250 dark:bg-slate-900 dark:border-slate-800/80 rounded-2xl p-6 shadow-sm"><h2 class="text-base font-bold text-gray-900 dark:text-white mb-4 flex items-center justify-between">Danh sách bài học tĩnh hiện tại<span class="px-2 py-0.5 rounded-full text-xs bg-gray-100 dark:bg-slate-800 text-gray-500 font-medium">${sortedLessons.length} bài học</span></h2>${sortedLessons.length === 0 ? renderTemplate`<div class="text-center py-12 text-gray-500">Chưa tìm thấy bài học nào trong thư mục \`src/content/lessons/\`.</div>` : renderTemplate`<div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-250 dark:divide-slate-800"><thead><tr class="text-left text-xs font-bold text-gray-400 dark:text-slate-550 uppercase tracking-wider"><th class="pb-3">Tiêu đề bài học (File JSON)</th><th class="pb-3">Môn học</th><th class="pb-3 hidden md:table-cell">Thứ tự (Order)</th><th class="pb-3 text-right">Xem trên web</th></tr></thead><tbody class="divide-y divide-gray-100 dark:divide-slate-800/60 text-sm font-medium">${sortedLessons.map((lesson) => {
+		const slug = lesson.id.split("/").pop() || lesson.id;
+		const subject = lesson.id.split("/")[0] || "";
+		const lessonData = lesson.data.lessons?.[0] || {};
+		return renderTemplate`<tr class="text-gray-700 dark:text-slate-350"><td class="py-4 pr-3"><span class="font-bold text-gray-900 dark:text-white block">${lessonData.name || lesson.id}</span><span class="text-[11px] text-gray-400 dark:text-slate-500 font-mono block mt-0.5">lessons/${lesson.id}.json</span></td><td class="py-4 pr-3"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600 dark:bg-slate-850 dark:text-slate-300">${getSubjectName(subject)}</span></td><td class="py-4 hidden md:table-cell text-gray-500 dark:text-slate-450">${lessonData.lesson_id ?? "Không"}</td><td class="py-4 text-right"><a${addAttribute(`/lms/${subject}/${slug}`, "href")} target="_blank" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center">Xem trang học sinh<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a></td></tr>`;
+	})}</tbody></table></div>`}</div></div>` })}`;
+}, "D:/lop12/src/pages/admin/lessons/index.astro", void 0);
+var $$file = "D:/lop12/src/pages/admin/lessons/index.astro";
+var $$url = "/lms/admin/lessons";
+//#endregion
+//#region \0virtual:astro:page:src/pages/admin/lessons/index@_@astro
+var page = () => lessons_exports;
+//#endregion
+export { page };

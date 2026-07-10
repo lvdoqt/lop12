@@ -1,0 +1,84 @@
+import { t as __exportAll } from "./rolldown-runtime_D7D4PA-g.mjs";
+import { C as renderTemplate, E as maybeRenderHead, N as createComponent, O as addAttribute, b as renderComponent } from "./render_FJwdtmM0.mjs";
+import "./compiler_DjieldEX.mjs";
+import { t as $$Layout } from "./Layout_BRwPCKES.mjs";
+//#region src/pages/forgot-password.astro
+var forgot_password_exports = /* @__PURE__ */ __exportAll({
+	default: () => $$ForgotPassword,
+	file: () => $$file,
+	prerender: () => false,
+	url: () => $$url
+});
+var $$ForgotPassword = createComponent(($$result, $$props, $$slots) => {
+	const supabaseUrl = "https://dwezesrukmwygqnmefbz.supabase.co";
+	const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3ZXplc3J1a213eWdxbm1lZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMzA0NjIsImV4cCI6MjA5NTcwNjQ2Mn0.LCojdG6LGAQDHw9ewbXFiJOFIvrFYNPZLr4KRNmystw";
+	return renderTemplate`${renderComponent($$result, "Layout", $$Layout, {
+		"title": "Quên mật khẩu",
+		"showSidebar": false
+	}, { "default": ($$result2) => renderTemplate`${maybeRenderHead($$result2)}<div id="supabase-config"${addAttribute(supabaseUrl, "data-url")}${addAttribute(supabaseAnonKey, "data-key")} class="hidden"></div><div class="min-h-[calc(100vh-12rem)] flex items-center justify-center py-6 px-4 sm:px-6 lg:px-8"><div class="max-w-md w-full space-y-8 bg-white dark:bg-slate-900 p-8 rounded-3xl border border-gray-250 dark:border-slate-800/80 shadow-sm transition-colors duration-200"><!-- Header --><div class="text-center"><a href="/lms/" class="inline-flex items-center space-x-2 mb-4"><div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-lg">L</div><span class="text-xl font-bold dark:text-white">LỚP 12 LMS</span></a><h2 class="text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight font-sans">Quên mật khẩu</h2><p class="mt-2 text-sm text-gray-500 dark:text-slate-400">Hãy nhập email của bạn để nhận liên kết đặt lại mật khẩu.</p></div><!-- Alerts --><div id="error-alert" class="hidden p-4 rounded-xl bg-rose-50 text-rose-600 text-sm font-semibold border border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/35"></div><div id="success-alert" class="hidden p-4 rounded-xl bg-emerald-50 text-emerald-600 text-sm font-semibold border border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/35"></div><!-- Form --><form id="forgot-form" class="space-y-4"><div><label for="email" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Địa chỉ Email</label><input id="email" name="email" type="email" required placeholder="name@gmail.com" class="w-full px-4 py-3 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 dark:focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100 transition-colors"></div><button type="submit" id="submit-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/25 transition-all flex items-center justify-center text-sm disabled:opacity-55">Gửi liên kết khôi phục</button><div class="text-center pt-2"><a href="/lms/login" class="text-xs font-bold text-gray-500 hover:text-gray-700 dark:text-slate-450 dark:hover:text-slate-300">Quay lại đăng nhập</a></div></form></div></div>` })}<script lang="ts">
+  import { createClient } from '@supabase/supabase-js';
+  const cfg = document.getElementById('supabase-config') as HTMLElement;
+  const supabase = createClient(cfg.dataset.url!, cfg.dataset.key!);
+
+  const form = document.getElementById('forgot-form') as HTMLFormElement | null;
+  const errorAlert = document.getElementById('error-alert');
+  const successAlert = document.getElementById('success-alert');
+  const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement | null;
+
+  const setError = (message: string) => {
+    if (errorAlert) {
+      errorAlert.textContent = message;
+      errorAlert.classList.remove('hidden');
+    }
+  };
+
+  const setSuccess = (message: string) => {
+    if (successAlert) {
+      successAlert.textContent = message;
+      successAlert.classList.remove('hidden');
+    }
+  };
+
+  if (form && submitBtn) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData(form);
+      const email = formData.get('email') as string;
+
+      if (errorAlert) errorAlert.classList.add('hidden');
+      if (successAlert) successAlert.classList.add('hidden');
+
+      submitBtn.disabled = true;
+
+
+
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin + '/reset-password',
+        });
+
+        if (error) {
+          setError(error.message);
+          submitBtn.disabled = false;
+          return;
+        }
+
+        setSuccess('Một email hướng dẫn đặt lại mật khẩu đã được gửi đi. Vui lòng kiểm tra hộp thư của bạn.');
+        form.reset();
+        submitBtn.disabled = false;
+      } catch (err: any) {
+        setError(err.message || 'Lỗi khôi phục mật khẩu.');
+        submitBtn.disabled = false;
+      }
+    });
+  }
+<\/script>`;
+}, "D:/lop12/src/pages/forgot-password.astro", void 0);
+var $$file = "D:/lop12/src/pages/forgot-password.astro";
+var $$url = "/lms/forgot-password";
+//#endregion
+//#region \0virtual:astro:page:src/pages/forgot-password@_@astro
+var page = () => forgot_password_exports;
+//#endregion
+export { page };
