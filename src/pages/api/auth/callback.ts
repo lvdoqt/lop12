@@ -32,11 +32,11 @@ export const GET: APIRoute = async (context) => {
   // Handle OAuth error from provider
   if (error) {
     const params = new URLSearchParams({ error, error_description: errorDescription || '' });
-    return redirect(`/lms/login?${params.toString()}`);
+    return redirect(`/login?${params.toString()}`);
   }
 
   if (!code) {
-    return redirect('/lms/login?error=missing_code&error_description=Thiếu mã xác thực từ Google.');
+    return redirect('/login?error=missing_code&error_description=Thiếu mã xác thực từ Google.');
   }
 
   // Read env from process.env / import.meta.env (Node.js SSR)
@@ -44,7 +44,7 @@ export const GET: APIRoute = async (context) => {
   const supabaseAnonKey = resolveEnv('PUBLIC_SUPABASE_ANON_KEY') || _SUPABASE_ANON_KEY_DEFAULT;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    return redirect('/lms/login?error=config_error&error_description=Cấu hình máy chủ không hợp lệ.');
+    return redirect('/login?error=config_error&error_description=Cấu hình máy chủ không hợp lệ.');
   }
 
   try {
@@ -57,7 +57,7 @@ export const GET: APIRoute = async (context) => {
 
     if (exchangeError || !data?.session) {
       const msg = exchangeError?.message || 'Không thể xác thực với Google.';
-      return redirect(`/lms/login?error=auth_error&error_description=${encodeURIComponent(msg)}`);
+      return redirect(`/login?error=auth_error&error_description=${encodeURIComponent(msg)}`);
     }
 
     // Set session cookies on the redirect response
@@ -69,9 +69,9 @@ export const GET: APIRoute = async (context) => {
       cookies.set('sb-refresh-token', data.session.refresh_token, cookieOpts);
     }
 
-    return redirect('/lms/dashboard');
+    return redirect('/dashboard');
   } catch (err: any) {
     const msg = err?.message || 'Đã xảy ra lỗi không mong muốn.';
-    return redirect(`/lms/login?error=server_error&error_description=${encodeURIComponent(msg)}`);
+    return redirect(`/login?error=server_error&error_description=${encodeURIComponent(msg)}`);
   }
 };

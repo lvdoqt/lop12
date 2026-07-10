@@ -107,26 +107,25 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // ============================================================
 
   // Auth pages (redirect to dashboard if already logged in)
-  const isAuthPage = path === '/lms/login' || path === '/lms/register' || path === '/lms/forgot-password' || path === '/lms/reset-password';
+  const isAuthPage = path === '/login' || path === '/register' || path === '/forgot-password' || path === '/reset-password';
 
   // PUBLIC pages - no login needed
   const isPublicContent =
-    path.startsWith('/lms/ly-thuyet') ||
-    /^\/lms\/[a-z0-9-]+-12\/[a-z0-9-]+$/.test(path) || // e.g., /lms/toan-12/bai-1
-    path === '/lms' ||
-    path === '/lms/';
+    path.startsWith('/ly-thuyet') ||
+    /^\/[a-z0-9-]+-12\/[a-z0-9-]+$/.test(path) || // e.g., /toan-12/bai-1
+    path === '/' || path === '';
 
-  // Exam info page is public (e.g. /lms/exams/exam-1 but NOT /lms/exams/exam-1/take or /lms/exams/exam-1/result/...)
-  const examPathSegments = path.replace(/^\/lms/, '').split('/').filter(s => s.length > 0); // ['exams', 'exam-1'] or ['exams','exam-1','take']
+  // Exam info page is public (e.g. /exams/exam-1 but NOT /exams/exam-1/take or /exams/exam-1/result/...)
+  const examPathSegments = path.split('/').filter(s => s.length > 0); // ['exams', 'exam-1'] or ['exams','exam-1','take']
   const isExamInfoPage = examPathSegments.length === 2 && examPathSegments[0] === 'exams';
 
   // LOGIN-REQUIRED pages
   const isProtectedRoute =
-    path.startsWith('/lms/dashboard') ||
-    path.startsWith('/lms/profile');
+    path.startsWith('/dashboard') ||
+    path.startsWith('/profile');
 
-  const isAdminRoute = path.startsWith('/lms/admin');
-  const isApiRoute = path.startsWith('/lms/api');
+  const isAdminRoute = path.startsWith('/admin');
+  const isApiRoute = path.startsWith('/api');
 
   // ============================================================
   // REDIRECTIONS
@@ -134,16 +133,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (user) {
     // Logged-in user trying to access login/register → send to dashboard
     if (isAuthPage) {
-      return context.redirect('/lms/dashboard');
+      return context.redirect('/dashboard');
     }
     // Admin-only route check
     if (isAdminRoute && user.role !== 'admin' && user.role !== 'teacher') {
-      return context.redirect('/lms/dashboard');
+      return context.redirect('/dashboard');
     }
   } else {
     // Guest user trying to access protected route → send to login
     if (isProtectedRoute || isAdminRoute) {
-      return context.redirect('/lms/login');
+      return context.redirect('/login');
     }
   }
 
@@ -182,7 +181,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
 
     // ── Public static-ish pages ─────────────────────────────────────────────
-    const strippedPath = path.replace(/^\/lms/, '') || '/';
+    const strippedPath = path || '/';
 
     // Trang chủ: 1h browser, 2h CDN, stale 24h
     if (strippedPath === '/' || strippedPath === '') {
