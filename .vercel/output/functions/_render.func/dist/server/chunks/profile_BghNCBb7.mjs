@@ -1,0 +1,131 @@
+import { t as __exportAll } from "./rolldown-runtime_D7D4PA-g.mjs";
+import { C as renderTemplate, E as maybeRenderHead, M as createAstro, N as createComponent, O as addAttribute, b as renderComponent } from "./render_FJwdtmM0.mjs";
+import { t as db } from "./db_ugDz1A2K.mjs";
+import "./compiler_DjieldEX.mjs";
+import { t as $$Layout } from "./Layout_BRwPCKES.mjs";
+//#region src/pages/profile.astro
+var profile_exports = /* @__PURE__ */ __exportAll({
+	default: () => $$Profile,
+	file: () => $$file,
+	prerender: () => false,
+	url: () => $$url
+});
+createAstro("https://lop12.com");
+var $$Profile = createComponent(async ($$result, $$props, $$slots) => {
+	const Astro2 = $$result.createAstro($$props, $$slots);
+	Astro2.self = $$Profile;
+	const supabaseUrl = "https://dwezesrukmwygqnmefbz.supabase.co";
+	const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3ZXplc3J1a213eWdxbm1lZmJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMzA0NjIsImV4cCI6MjA5NTcwNjQ2Mn0.LCojdG6LGAQDHw9ewbXFiJOFIvrFYNPZLr4KRNmystw";
+	const user = Astro2.locals.user;
+	if (!user) return Astro2.redirect("/lms/login");
+	let successMsg = "";
+	let errMsg = "";
+	if (Astro2.request.method === "POST") try {
+		const formData = await Astro2.request.formData();
+		if (formData.get("action") === "update_profile") {
+			const fullname = formData.get("fullname");
+			const avatar_url = formData.get("avatar_url");
+			if (!fullname.trim()) errMsg = "Họ và tên không được để trống.";
+			else {
+				await db.updateUserProfile(user.id, {
+					fullname,
+					avatar_url
+				});
+				successMsg = "Cập nhật thông tin hồ sơ thành công!";
+				user.fullname = fullname;
+				user.avatar_url = avatar_url;
+			}
+		}
+	} catch (err) {
+		errMsg = err.message || "Lỗi cập nhật hồ sơ.";
+	}
+	return renderTemplate`${renderComponent($$result, "Layout", $$Layout, { "title": "Hồ sơ cá nhân" }, { "default": ($$result2) => renderTemplate`${maybeRenderHead($$result2)}<div id="supabase-config"${addAttribute(supabaseUrl, "data-url")}${addAttribute(supabaseAnonKey, "data-key")} class="hidden"></div><div class="max-w-4xl mx-auto space-y-6"><div><h1 class="text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Hồ sơ cá nhân</h1><p class="text-sm text-gray-500 dark:text-slate-400 mt-1">Quản lý thông tin cá nhân và thay đổi mật khẩu tài khoản của bạn.</p></div><!-- Alert banners -->${successMsg && renderTemplate`<div class="p-4 rounded-xl bg-emerald-50 text-emerald-600 text-sm font-semibold border border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/35">${successMsg}</div>`}${errMsg && renderTemplate`<div class="p-4 rounded-xl bg-rose-50 text-rose-600 text-sm font-semibold border border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/35">${errMsg}</div>`}<!-- Profile Details Card --><div class="bg-white dark:bg-slate-900 border border-gray-250 dark:border-slate-800/80 rounded-2xl p-6 md:p-8 shadow-sm"><h2 class="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5.5 w-5.5 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>Thông tin tài khoản</h2><form method="POST" class="space-y-4"><input type="hidden" name="action" value="update_profile"><div class="flex items-center space-x-6 mb-6"><img id="profile-avatar-preview"${addAttribute(user.avatar_url || "https://api.dicebear.com/7.x/adventurer/svg?seed=default", "src")} alt="Avatar" class="w-16 h-16 rounded-full border border-gray-250 dark:border-slate-800 bg-slate-100"><div><label class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Ảnh đại diện (Avatar URL)</label><input type="text" name="avatar_url" id="avatar-input"${addAttribute(user.avatar_url || "", "value")} placeholder="https://api.dicebear.com/7.x/..." class="w-full sm:w-80 px-4 py-2 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 dark:focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100 transition-colors"></div></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><label class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Email (Không thể thay đổi)</label><input type="email"${addAttribute(user.email, "value")} disabled class="w-full px-4 py-3 rounded-xl border border-gray-250 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 text-sm outline-none text-gray-400 dark:text-slate-500 cursor-not-allowed"></div><div><label class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Họ và tên</label><input type="text" name="fullname"${addAttribute(user.fullname || "", "value")} required class="w-full px-4 py-3 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 dark:focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100 transition-colors"></div></div><div class="flex justify-end pt-4"><button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-xl shadow-md shadow-blue-500/20 hover:shadow-xl transition">Lưu thay đổi</button></div></form></div><!-- Password Change Card --><div class="bg-white dark:bg-slate-900 border border-gray-250 dark:border-slate-800/80 rounded-2xl p-6 md:p-8 shadow-sm"><h2 class="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5.5 w-5.5 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>Đổi mật khẩu tài khoản</h2><div id="pw-error-alert" class="hidden mb-4 p-4 rounded-xl bg-rose-50 text-rose-600 text-sm font-semibold border border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/35"></div><div id="pw-success-alert" class="hidden mb-4 p-4 rounded-xl bg-emerald-50 text-emerald-600 text-sm font-semibold border border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/35"></div><form id="change-password-form" class="space-y-4"><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><label for="new_password" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Mật khẩu mới</label><input type="password" id="new_password" name="new_password" required placeholder="Tối thiểu 6 ký tự" class="w-full px-4 py-3 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 dark:focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100 transition-colors"></div><div><label for="confirm_new_password" class="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Xác nhận mật khẩu mới</label><input type="password" id="confirm_new_password" name="confirm_new_password" required placeholder="Nhập lại mật khẩu mới" class="w-full px-4 py-3 rounded-xl border border-gray-250 dark:border-slate-800/80 bg-transparent text-sm focus:border-blue-500 dark:focus:border-blue-500 outline-none text-gray-800 dark:text-slate-100 transition-colors"></div></div><div class="flex justify-end pt-4"><button type="submit" id="pw-submit-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-xl shadow-md shadow-blue-500/20 hover:shadow-xl transition">Đổi mật khẩu</button></div></form></div></div>` })}<script lang="ts">
+  import { createClient } from '@supabase/supabase-js';
+  const cfg = document.getElementById('supabase-config') as HTMLElement;
+  const supabase = createClient(cfg.dataset.url!, cfg.dataset.key!);
+
+  // Preview avatar live on input change
+  const avatarInput = document.getElementById('avatar-input') as HTMLInputElement | null;
+  const avatarPreview = document.getElementById('profile-avatar-preview') as HTMLImageElement | null;
+  
+  if (avatarInput && avatarPreview) {
+    avatarInput.addEventListener('input', () => {
+      const val = avatarInput.value.trim();
+      if (val) {
+        avatarPreview.src = val;
+      }
+    });
+  }
+
+  // Password Change Handler
+  const pwForm = document.getElementById('change-password-form') as HTMLFormElement | null;
+  const pwError = document.getElementById('pw-error-alert');
+  const pwSuccess = document.getElementById('pw-success-alert');
+  const pwSubmit = document.getElementById('pw-submit-btn') as HTMLButtonElement | null;
+
+  if (pwForm && pwSubmit) {
+    pwForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(pwForm);
+      const password = formData.get('new_password') as string;
+      const confirmPassword = formData.get('confirm_new_password') as string;
+
+      if (pwError) pwError.classList.add('hidden');
+      if (pwSuccess) pwSuccess.classList.add('hidden');
+
+      if (password.length < 6) {
+        if (pwError) {
+          pwError.textContent = 'Mật khẩu mới phải dài tối thiểu 6 ký tự.';
+          pwError.classList.remove('hidden');
+        }
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        if (pwError) {
+          pwError.textContent = 'Xác nhận mật khẩu mới không trùng khớp.';
+          pwError.classList.remove('hidden');
+        }
+        return;
+      }
+
+      pwSubmit.disabled = true;
+
+
+
+      try {
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) {
+          if (pwError) {
+            pwError.textContent = error.message;
+            pwError.classList.remove('hidden');
+          }
+          pwSubmit.disabled = false;
+          return;
+        }
+
+        if (pwSuccess) {
+          pwSuccess.textContent = 'Đặt lại mật khẩu mới thành công!';
+          pwSuccess.classList.remove('hidden');
+        }
+        pwForm.reset();
+        pwSubmit.disabled = false;
+      } catch (err: any) {
+        if (pwError) {
+          pwError.textContent = err.message || 'Lỗi đổi mật khẩu.';
+          pwError.classList.remove('hidden');
+        }
+        pwSubmit.disabled = false;
+      }
+    });
+  }
+<\/script>`;
+}, "D:/lop12/src/pages/profile.astro", void 0);
+var $$file = "D:/lop12/src/pages/profile.astro";
+var $$url = "/lms/profile";
+//#endregion
+//#region \0virtual:astro:page:src/pages/profile@_@astro
+var page = () => profile_exports;
+//#endregion
+export { page };
